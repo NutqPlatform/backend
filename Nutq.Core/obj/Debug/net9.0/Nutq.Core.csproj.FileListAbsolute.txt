@@ -1,0 +1,11 @@
+/home/sama/Nutq/Nutq.Core/bin/Debug/net9.0/Nutq.Core.deps.json
+/home/sama/Nutq/Nutq.Core/bin/Debug/net9.0/Nutq.Core.dll
+/home/sama/Nutq/Nutq.Core/bin/Debug/net9.0/Nutq.Core.pdb
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/Nutq.Core.GeneratedMSBuildEditorConfig.editorconfig
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/Nutq.Core.AssemblyInfoInputs.cache
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/Nutq.Core.AssemblyInfo.cs
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/Nutq.Core.csproj.CoreCompileInputs.cache
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/Nutq.Core.dll
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/refint/Nutq.Core.dll
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/Nutq.Core.pdb
+/home/sama/Nutq/Nutq.Core/obj/Debug/net9.0/ref/Nutq.Core.dll
