@@ -1,0 +1,47 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+*.exe
+*.dll
+*.log
+
+# User-specific files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# ASP.NET Core specific
+appsettings.Development.json
+appsettings.Local.json
+
+# Entity Framework
+Migrations/
+
+# Database files
+*.db
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Rider / JetBrains IDE
+.idea/
+
+# dotnet artifacts
+*.nuget.props
+*.nuget.targets
+
+# Sensitive data
+secrets.json
+.env

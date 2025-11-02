@@ -1,8 +1,0 @@
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.csproj.AssemblyReference.cache
-/home/sama/Nutq/obj/Debug/net9.0/rpswa.dswa.cache.json
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.GeneratedMSBuildEditorConfig.editorconfig
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.AssemblyInfoInputs.cache
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.AssemblyInfo.cs
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.csproj.CoreCompileInputs.cache
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.MvcApplicationPartsAssemblyInfo.cs
-/home/sama/Nutq/obj/Debug/net9.0/Nutq.MvcApplicationPartsAssemblyInfo.cache
