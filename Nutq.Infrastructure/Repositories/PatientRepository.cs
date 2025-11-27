@@ -15,5 +15,12 @@ namespace Nutq.Infrastructure.Repositories
         {
             return await _context.Patients.FirstOrDefaultAsync(p => p.Email == email);
         }
+        public async Task<IEnumerable<Patient>> GetByDoctorIdAsync(int doctorId)
+{
+    return await _context.Patients
+        .Where(p => p.DoctorId == doctorId)
+        .ToListAsync();
+}
+
     }
 }

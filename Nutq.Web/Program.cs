@@ -23,6 +23,7 @@ builder.Services.AddScoped<IInvitationCodeRepository, InvitationCodeRepository>(
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDoctorService, DoctorService>();
 
 // Add controllers
 builder.Services.AddControllers();

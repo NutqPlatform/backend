@@ -12,15 +12,17 @@ namespace Nutq.Infrastructure.Repositories
         public InvitationCodeRepository(ApplicationDbContext context) : base(context)
         {
         }
+        
 
         public async Task<InvitationCode?> GetValidCodeAsync(string code, string type)
         {
             return await _context.InvitationCodes
-                .FirstOrDefaultAsync(c =>
-                    c.Code == code &&
-                    c.Type == type &&
-                    !c.Used &&
-                    c.ExpireAt > DateTime.UtcNow);
+    .FirstOrDefaultAsync(x =>
+        x.Code.ToLower() == code.ToLower() &&
+        x.Type.ToLower() == type.ToLower() &&
+        !x.Used &&
+        (x.ExpiresAt == null || x.ExpiresAt > DateTime.UtcNow));
+
         }
 
         public async Task MarkUsedAsync(int codeId)
@@ -32,5 +34,10 @@ namespace Nutq.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+        public async Task<bool> ExistsAsync(string code)
+{
+    return await _context.InvitationCodes.AnyAsync(c => c.Code == code);
+}
+
     }
 }

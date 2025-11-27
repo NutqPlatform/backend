@@ -3,26 +3,28 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Nutq.Core.Entities
 {
-   public class InvitationCode
+    public class InvitationCode
 {
     [Key]
     public int Id { get; set; }
 
-    [ForeignKey(nameof(Doctor))]
-    public int? DoctorId { get; set; }   // ← بقيت Nullable
-
-    [Required, MaxLength(50)]
+    [MaxLength(50)]
     public string Code { get; set; } = null!;
 
-    [Required, MaxLength(50)]
+    // doctor / patient
+    [Required, MaxLength(20)]
     public string Type { get; set; } = null!;
 
-    [Required]
-    public DateTime ExpireAt { get; set; }
+    // لو Patient → لازم يكون ليه DoctorId
+    // لو Doctor → تبقى null
+    public int? DoctorId { get; set; }
+    public Doctor? Doctor { get; set; }
 
-    public bool Used { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public Doctor? Doctor { get; set; }   // ← برضه Nullable
+    public DateTime? ExpiresAt { get; set; }
+
+    public bool Used { get; set; } = false;
 }
- 
+
 }
