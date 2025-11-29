@@ -1,4 +1,5 @@
 using Nutq.Core.Entities;
+using System.Threading.Tasks;
 
 namespace Nutq.Core.Interfaces
 {

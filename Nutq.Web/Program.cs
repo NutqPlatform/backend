@@ -21,6 +21,11 @@ builder.Services.AddScoped<IVocabularyRepository, VocabularyRepository>();
 builder.Services.AddScoped<IWeeklyReportRepository, WeeklyReportRepository>();
 builder.Services.AddScoped<IInvitationCodeRepository, InvitationCodeRepository>();
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
+builder.Services.AddScoped<ITherapyPlanRepository, TherapyPlanRepository>();
+
+
+
+builder.Services.AddScoped<ITherapyPlanService, TherapyPlanService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();

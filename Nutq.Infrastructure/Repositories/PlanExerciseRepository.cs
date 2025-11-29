@@ -9,7 +9,5 @@ namespace Nutq.Infrastructure.Repositories
         public PlanExerciseRepository(ApplicationDbContext context) : base(context)
         {
         }
-
-        
     }
 }
