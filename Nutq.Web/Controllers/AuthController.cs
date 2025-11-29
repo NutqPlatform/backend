@@ -7,7 +7,7 @@ namespace Nutq.Web.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [ApiExplorerSettings(GroupName = "v1")] // مهم عشان Swagger يشوفها
+    [ApiExplorerSettings(GroupName = "v1")] 
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;

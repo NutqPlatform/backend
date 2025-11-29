@@ -14,9 +14,7 @@ namespace Nutq.Web.Controllers
             _doctorService = doctorService;
         }
 
-        /// <summary>
-        /// Generate invitation code for a patient (doctor creates it)
-        /// </summary>
+        
         [HttpPost("{doctorId}/generate-patient-code")]
         public async Task<IActionResult> GeneratePatientCode(int doctorId)
         {
@@ -41,28 +39,22 @@ namespace Nutq.Web.Controllers
             }
         }
 
-        [HttpGet("{doctorId}/patients")]
-public async Task<IActionResult> GetDoctorPatients(int doctorId)
+
+[HttpGet("{doctorId}/patients")]
+public async Task<IActionResult> GetPatients(int doctorId)
 {
     try
     {
         var patients = await _doctorService.GetDoctorPatientsAsync(doctorId);
-
-        return Ok(new
-        {
-            success = true,
-            patients = patients
-        });
+        return Ok(new { patients });
     }
     catch (Exception ex)
     {
-        return BadRequest(new
-        {
-            success = false,
-            error = ex.Message
-        });
+        return BadRequest(new { success = false, error = ex.Message });
     }
 }
+
+
 
     }
 }

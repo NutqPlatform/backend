@@ -48,7 +48,7 @@ public async Task<IActionResult> AddExercise(int planId, [FromBody] AddPlanExerc
     {
         var planExercise = await _planService.AddExerciseToPlanAsync(planId, command);
 
-        var exercise = planExercise.Exercise; // لازم يكون مشمول بالـ Include في الريبو
+        var exercise = planExercise.Exercise; 
 
         var dto = new PlanExerciseDto
         {

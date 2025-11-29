@@ -74,14 +74,13 @@ namespace Nutq.Core.Services
 
     var created = await _planExerciseRepo.AddAsync(planExercise);
 
-    // **ارجع الـ Entity نفسها، لا DTO**
+    
     return created;
 }
 
         public async Task<IEnumerable<TherapyPlan>> GetPlansForPatientAsync(int doctorId, int patientId)
         {
-            // نتحقق من صلاحية الطبيب للمريض لو احتجنا (اختياري)
-            // هنا نعيد الخطط المرتبطة
+            
             return await _planRepo.GetByDoctorAndPatientAsync(doctorId, patientId);
         }
 

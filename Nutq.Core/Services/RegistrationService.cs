@@ -35,32 +35,32 @@ namespace Nutq.Core.Services
 
             await _doctorRepo.AddAsync(doctor);
 
-            // هنا: نحول code.Id لـ int بعد التأكد إنه مش null
+          
             await _inviteRepo.MarkUsedAsync(code.Id);
 
             return true;
         }
 
-        public async Task<bool> RegisterPatientAsync(PatientRegisterCommand command)
-        {
-            var code = await _inviteRepo.GetValidCodeAsync(command.InvitationCode, "Patient");
-            if (code == null)
-                return false;
+      public async Task<bool> RegisterPatientAsync(PatientRegisterCommand command)
+{
+    var code = await _inviteRepo.GetValidCodeAsync(command.InvitationCode, "Patient");
+    if (code == null || code.DoctorId == null)
+        return false; 
 
-            var patient = new Patient
-            {
-                DoctorId = code.DoctorId.Value, // برضه لازم .Value
-                Name = command.Name,
-                Email = command.Email,
-                Password = command.Password,
-                Age = command.Age,
-                Diagnosis = ""
-            };
+    var patient = new Patient
+    {
+        DoctorId = code.DoctorId.Value, 
+        Name = command.Name,
+        Email = command.Email,
+        Password = command.Password,
+        Age = command.Age,
+        Diagnosis = ""
+    };
 
-            await _patientRepo.AddAsync(patient);
-            await _inviteRepo.MarkUsedAsync(code.Id);
+    await _patientRepo.AddAsync(patient);
+    await _inviteRepo.MarkUsedAsync(code.Id);
 
-            return true;
-        }
+    return true;
+}
     }
 }

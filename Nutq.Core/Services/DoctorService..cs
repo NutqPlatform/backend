@@ -30,7 +30,7 @@ namespace Nutq.Core.Services
             {
                 code = GenerateRandomCode();
             }
-            while (await _codeRepo.ExistsAsync(code)); // الكود لازم يكون يونيك
+            while (await _codeRepo.ExistsAsync(code)); // unique
 
             var invitation = new InvitationCode
             {

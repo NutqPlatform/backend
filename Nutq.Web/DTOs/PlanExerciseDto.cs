@@ -10,7 +10,7 @@ namespace Nutq.Web.DTOs
         public int Repetition { get; set; }
         public string? AiConstraints { get; set; }
 
-        // بيانات التمرين المرتبط (اختياري حسب الحاجة)
+        // بيانات التمرين المرتبط
         public ExerciseDto? Exercise { get; set; }
     }
 
