@@ -23,7 +23,11 @@ builder.Services.AddScoped<IInvitationCodeRepository, InvitationCodeRepository>(
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
 builder.Services.AddScoped<ITherapyPlanRepository, TherapyPlanRepository>();
 
+builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
+builder.Services.AddScoped<IExerciseProgressService, ExerciseProgressService>();
 
+builder.Services.AddScoped<IExerciseService, ExerciseService>();
+builder.Services.AddScoped<IExerciseRepository, ExerciseRepository>();
 
 builder.Services.AddScoped<ITherapyPlanService, TherapyPlanService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();

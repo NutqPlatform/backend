@@ -14,12 +14,4 @@ namespace Nutq.Web.DTOs
         public ExerciseDto? Exercise { get; set; }
     }
 
-    public class ExerciseDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = null!;
-        public string? Description { get; set; }
-        public string? Category { get; set; }
-        public string? Difficulty { get; set; }
-    }
 }

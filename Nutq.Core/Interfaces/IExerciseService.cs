@@ -2,7 +2,7 @@ using Nutq.Core.Entities;
 
 namespace Nutq.Core.Interfaces
 {
-    public interface IExerciseRepository : IRepository<Exercise>
+    public interface IExerciseService
     {
         Task<IEnumerable<Exercise>> GetAllAsync();
         Task<Exercise?> GetByIdAsync(int id);
