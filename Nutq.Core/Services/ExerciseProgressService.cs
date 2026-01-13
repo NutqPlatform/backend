@@ -1,3 +1,4 @@
+// Core/Services/ExerciseProgressService.cs
 using Nutq.Core.Commands;
 using Nutq.Core.Entities;
 using Nutq.Core.Interfaces;
@@ -23,7 +24,7 @@ namespace Nutq.Core.Services
             _planExerciseRepo = planExerciseRepo;
         }
 
-        public async Task AddProgressAsync(ExerciseProgressCommand command)
+        public async Task AddOrUpdateProgressAsync(ExerciseProgressCommand command)
         {
             var patient = await _patientRepo.GetByIdAsync(command.PatientId);
             if (patient == null)
@@ -33,17 +34,31 @@ namespace Nutq.Core.Services
             if (planExercise == null)
                 throw new Exception("Plan exercise not found");
 
-            var progress = new ExerciseProgress
+            // Check existing record
+            var existing = await _progressRepo.GetByPatientAndPlanExerciseAsync(command.PatientId, command.PlanExerciseId);
+            if (existing != null)
             {
-                PatientId = command.PatientId,
-                PlanExerciseId = command.PlanExerciseId,
-                StartTime = command.StartTime,
-                EndTime = command.EndTime,
-                Score = command.Score,
-                Completed = command.Completed
-            };
-
-            await _progressRepo.AddAsync(progress);
+                // Update
+                existing.StartTime = command.StartTime;
+                existing.EndTime = command.EndTime;
+                existing.Score = command.Score;
+                existing.Completed = command.Completed;
+                await _progressRepo.UpdateAsync(existing);
+            }
+            else
+            {
+                // Add new
+                var progress = new ExerciseProgress
+                {
+                    PatientId = command.PatientId,
+                    PlanExerciseId = command.PlanExerciseId,
+                    StartTime = command.StartTime,
+                    EndTime = command.EndTime,
+                    Score = command.Score,
+                    Completed = command.Completed
+                };
+                await _progressRepo.AddAsync(progress);
+            }
         }
 
         public async Task<IEnumerable<ExerciseProgress>> GetPatientProgressAsync(int patientId)

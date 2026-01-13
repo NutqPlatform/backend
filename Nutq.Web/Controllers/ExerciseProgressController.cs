@@ -1,8 +1,11 @@
+// Web/Controllers/ExerciseProgressController.cs
 using Microsoft.AspNetCore.Mvc;
 using Nutq.Core.Commands;
 using Nutq.Core.Interfaces;
-using Nutq.Core.Entities;
 using Nutq.Web.DTOs;
+using System.Linq;
+using System.Threading.Tasks;
+
 namespace Nutq.Web.Controllers
 {
     [ApiController]
@@ -17,14 +20,14 @@ namespace Nutq.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddProgress([FromBody] ExerciseProgressCommand command)
+        public async Task<IActionResult> AddOrUpdateProgress([FromBody] ExerciseProgressCommand command)
         {
             try
             {
-                await _progressService.AddProgressAsync(command);
+                await _progressService.AddOrUpdateProgressAsync(command);
                 return Ok(new { message = "Progress recorded successfully" });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 return BadRequest(new { error = ex.Message });
             }
@@ -36,20 +39,18 @@ namespace Nutq.Web.Controllers
             var progresses = await _progressService.GetPatientProgressAsync(patientId);
 
             var dtos = progresses.Select(p => new ExerciseProgressDto
-{
-    Id = p.Id,
-    PatientId = p.PatientId,
-    PlanExerciseId = p.PlanExerciseId,
-    StartTime = p.StartTime,
-    EndTime = p.EndTime,
-    Score = p.Score,
-    Completed = p.Completed,
-    ExerciseName = p.PlanExercise?.Exercise?.Name ?? "Unknown"
-}).ToList();
-
+            {
+                Id = p.Id,
+                PatientId = p.PatientId,
+                PlanExerciseId = p.PlanExerciseId,
+                StartTime = p.StartTime,
+                EndTime = p.EndTime,
+                Score = p.Score,
+                Completed = p.Completed,
+                ExerciseName = p.PlanExercise?.Exercise?.Name ?? "Unknown"
+            }).ToList();
 
             return Ok(dtos);
         }
     }
-
 }

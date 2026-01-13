@@ -34,6 +34,9 @@ builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();
 
+builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
+
+builder.Services.AddScoped<IDoctorAnalyticsService, DoctorAnalyticsService>();
 // Add controllers
 builder.Services.AddControllers();
 

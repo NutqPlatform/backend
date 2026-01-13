@@ -10,19 +10,28 @@ namespace Nutq.Infrastructure.Repositories
 {
     public class TherapyPlanRepository : Repository<TherapyPlan>, ITherapyPlanRepository
     {
-        private readonly ApplicationDbContext _context;
+    
+
         public TherapyPlanRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
+            
         }
 
-        public async Task<IEnumerable<TherapyPlan>> GetByDoctorAndPatientAsync(int doctorId, int patientId)
+        public async Task<List<TherapyPlan>> GetPlansByDoctorAsync(int doctorId)
+        {
+            return await _context.TherapyPlans
+                .Where(p => p.DoctorId == doctorId)
+                .ToListAsync();
+        }
+         public async Task<IEnumerable<TherapyPlan>> GetByDoctorAndPatientAsync(int doctorId, int patientId)
         {
             return await _context.TherapyPlans
                 .Where(tp => tp.DoctorId == doctorId && tp.PatientId == patientId)
-                .Include(tp => tp.PlanExercises)
+                .Include(tp => tp.PlanExercises!)
                     .ThenInclude(pe => pe.Exercise)
                 .ToListAsync();
         }
     }
+       
 }
+

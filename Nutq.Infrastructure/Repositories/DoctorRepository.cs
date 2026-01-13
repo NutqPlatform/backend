@@ -5,15 +5,23 @@ using Nutq.Infrastructure.Data;
 
 namespace Nutq.Infrastructure.Repositories
 {
-    public class DoctorRepository : Repository<Doctor>, IDoctorRepository
+     public class DoctorRepository : Repository<Doctor>, IDoctorRepository
     {
+       
+
         public DoctorRepository(ApplicationDbContext context) : base(context)
         {
+            
         }
-
-        public async Task<Doctor?> GetByEmailAsync(string email)
+         public async Task<Doctor?> GetByEmailAsync(string email)
         {
             return await _context.Doctors.FirstOrDefaultAsync(d => d.Email == email);
+        }
+        public async Task<List<Patient>> GetPatientsAsync(int doctorId)
+        {
+            return await _context.Patients
+                .Where(p => p.DoctorId == doctorId)
+                .ToListAsync();
         }
     }
 }
