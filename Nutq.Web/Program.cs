@@ -37,6 +37,18 @@ builder.Services.AddScoped<IDoctorService, DoctorService>();
 builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
 
 builder.Services.AddScoped<IDoctorAnalyticsService, DoctorAnalyticsService>();
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Add controllers
 builder.Services.AddControllers();
 
@@ -71,6 +83,9 @@ if (app.Environment.IsDevelopment())
 
 // Disable HTTPS redirection for local development to avoid SSL issues
 // app.UseHttpsRedirection();
+
+// Enable CORS
+app.UseCors("AllowFrontend");
 
 app.MapControllers();
 

@@ -88,5 +88,43 @@ namespace Nutq.Core.Services
         {
             return await _planRepo.GetByIdAsync(planId);
         }
+
+        public async Task DeleteExerciseFromPlanAsync(int planId, int planExerciseId)
+        {
+            var plan = await _planRepo.GetByIdAsync(planId);
+            if (plan == null) throw new Exception("Therapy plan not found");
+            
+            if (plan.Status != "Active")
+                throw new Exception("Can only edit active plans");
+
+            var planExercise = await _planExerciseRepo.GetByIdAsync(planExerciseId);
+            if (planExercise == null) throw new Exception("Plan exercise not found");
+            
+            if (planExercise.TherapyPlanId != planId)
+                throw new Exception("Exercise does not belong to this plan");
+
+            await _planExerciseRepo.DeleteAsync(planExerciseId);
+        }
+
+        public async Task UpdatePlanStatusAsync(int planId, string status)
+        {
+            var plan = await _planRepo.GetByIdAsync(planId);
+            if (plan == null) throw new Exception("Therapy plan not found");
+
+            plan.Status = status;
+            await _planRepo.UpdateAsync(plan);
+        }
+
+        
+        public async Task<IEnumerable<TherapyPlan>> GetActivePlansForDoctorAsync(int doctorId)
+{
+    var allPlans = await _planRepo.GetPlansByDoctorAsync(doctorId);
+
+    return allPlans.Where(p =>
+        p.Status == "Active" &&
+        (p.EndDate == null || p.EndDate > DateTime.UtcNow)
+    );
+}
+
     }
 }

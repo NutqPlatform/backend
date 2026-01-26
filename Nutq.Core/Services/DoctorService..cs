@@ -81,5 +81,87 @@ public async Task<IEnumerable<object>> GetDoctorPatientsAsync(int doctorId)
     });
 }
 
+public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
+{
+    var doctor = await _doctorRepo.GetByIdAsync(doctorId);
+    if (doctor == null)
+        throw new Exception("Doctor not found");
+
+    var patient = await _patientRepo.GetByIdAsync(patientId);
+    if (patient == null)
+        throw new Exception($"Patient with ID {patientId} not found");
+    
+    if (patient.DoctorId != doctorId)
+        throw new Exception($"Patient with ID {patientId} does not belong to doctor {doctorId}");
+
+    return new
+    {
+        patient.Id,
+        patient.Name,
+        patient.Email,
+        patient.Age,
+        patient.Diagnosis,
+        patient.ProfilePicture
+    };
+}
+
+public async Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis)
+{
+    var doctor = await _doctorRepo.GetByIdAsync(doctorId);
+    if (doctor == null)
+        throw new Exception("Doctor not found");
+
+    var patient = await _patientRepo.GetByIdAsync(patientId);
+    if (patient == null || patient.DoctorId != doctorId)
+        throw new Exception("Patient not found or does not belong to this doctor");
+
+    patient.Diagnosis = diagnosis;
+    await _patientRepo.UpdateAsync(patient);
+}
+
+public async Task<object> GetDoctorProfileAsync(int doctorId)
+{
+    var doctor = await _doctorRepo.GetByIdAsync(doctorId);
+    if (doctor == null)
+        throw new Exception("Doctor not found");
+
+    return new
+    {
+        doctor.Id,
+        doctor.Name,
+        doctor.Email,
+        doctor.ProfilePicture,
+        doctor.CV
+    };
+}
+
+public async Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture, string? cv)
+{
+    var doctor = await _doctorRepo.GetByIdAsync(doctorId);
+    if (doctor == null)
+        throw new Exception("Doctor not found");
+
+    if (profilePicture != null)
+        doctor.ProfilePicture = profilePicture;
+    
+    if (cv != null)
+        doctor.CV = cv;
+
+    await _doctorRepo.UpdateAsync(doctor);
+}
+
+public async Task UpdateDoctorPasswordAsync(int doctorId, string currentPassword, string newPassword)
+{
+    var doctor = await _doctorRepo.GetByIdAsync(doctorId);
+    if (doctor == null)
+        throw new Exception("Doctor not found");
+
+    if (doctor.Password != currentPassword)
+        throw new Exception("Current password is incorrect");
+
+    doctor.Password = newPassword;
+    await _doctorRepo.UpdateAsync(doctor);
+}
+
     }
 }

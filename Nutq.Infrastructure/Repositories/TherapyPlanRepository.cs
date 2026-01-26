@@ -21,6 +21,9 @@ namespace Nutq.Infrastructure.Repositories
         {
             return await _context.TherapyPlans
                 .Where(p => p.DoctorId == doctorId)
+                .Include(tp => tp.Patient)
+                .Include(tp => tp.PlanExercises!)
+                    .ThenInclude(pe => pe.Exercise)
                 .ToListAsync();
         }
          public async Task<IEnumerable<TherapyPlan>> GetByDoctorAndPatientAsync(int doctorId, int patientId)
