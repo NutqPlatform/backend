@@ -21,11 +21,10 @@ namespace Nutq.Web.Controllers
             var plans = await _service.GetPatientPlansAsync(patientId);
             var progress = await _service.GetPatientProgressAsync(patientId);
 
-            var result = plans.Select(plan => new PatientDashboardDto
+            var result = plans.Select(plan =>
             {
-                PlanId = plan.Id,
-                PlanName = plan.Description!,
-                Exercises = plan.PlanExercises!.Select(pe =>
+                var planExercises = plan.PlanExercises ?? new List<Nutq.Core.Entities.PlanExercise>();
+                var exercisesDto = planExercises.Select(pe =>
                 {
                     var prog = progress.FirstOrDefault(p => p.PlanExerciseId == pe.Id);
                     return new ExerciseProgressDto
@@ -35,7 +34,19 @@ namespace Nutq.Web.Controllers
                         Completed = prog?.Completed ?? false,
                         Score = prog?.Score
                     };
-                }).ToList()
+                }).ToList();
+                var completedCount = exercisesDto.Count(e => e.Completed);
+                var totalCount = exercisesDto.Count;
+                var progressPercentage = totalCount > 0 ? (double)completedCount / totalCount * 100 : 0;
+
+                return new PatientDashboardDto
+                {
+                    PlanId = plan.Id,
+                    PlanName = plan.Description ?? "Untitled Plan",
+                    PlanStatus = plan.Status,
+                    ProgressPercentage = progressPercentage,
+                    Exercises = exercisesDto
+                };
             });
 
             return Ok(result);

@@ -35,6 +35,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();
 
 builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
+builder.Services.AddScoped<IPatientService, PatientService>();
 
 builder.Services.AddScoped<IDoctorAnalyticsService, DoctorAnalyticsService>();
 // Add CORS
