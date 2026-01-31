@@ -5,6 +5,7 @@ using Nutq.Infrastructure.Repositories;
 using Nutq.Core.Services;
 using Microsoft.OpenApi.Models;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add DbContext
@@ -70,7 +71,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
-
+app.UseStaticFiles(); 
 // Swagger configuration
 if (app.Environment.IsDevelopment())
 {

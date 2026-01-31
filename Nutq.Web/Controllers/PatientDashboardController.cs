@@ -29,10 +29,12 @@ namespace Nutq.Web.Controllers
                     var prog = progress.FirstOrDefault(p => p.PlanExerciseId == pe.Id);
                     return new ExerciseProgressDto
                     {
+                        PlanExerciseId = pe.Id,
                         ExerciseId = pe.ExerciseId,
                         ExerciseName = pe.Exercise.Name,
                         Completed = prog?.Completed ?? false,
-                        Score = prog?.Score
+                        Score = prog?.Score,
+                        Started = prog != null
                     };
                 }).ToList();
                 var completedCount = exercisesDto.Count(e => e.Completed);

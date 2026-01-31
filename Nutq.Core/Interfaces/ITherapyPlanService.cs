@@ -11,6 +11,7 @@ namespace Nutq.Core.Interfaces
         Task<PlanExercise> AddExerciseToPlanAsync(int planId, AddPlanExerciseCommand command);
         Task<IEnumerable<TherapyPlan>> GetPlansForPatientAsync(int doctorId, int patientId);
         Task<TherapyPlan?> GetPlanByIdAsync(int planId);
+        Task<TherapyPlan?> GetPlanWithExercisesForPatientAsync(int planId, int patientId);
         Task DeleteExerciseFromPlanAsync(int planId, int planExerciseId);
         Task UpdatePlanStatusAsync(int planId, string status);
         Task<IEnumerable<TherapyPlan>> GetActivePlansForDoctorAsync(int doctorId);

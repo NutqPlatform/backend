@@ -17,8 +17,7 @@ namespace Nutq.Core.Entities
         [Required]
         public DateTime StartTime { get; set; }
 
-        [Required]
-        public DateTime EndTime { get; set; }
+        public DateTime? EndTime { get; set; }
 
         public double? Score { get; set; }
 

@@ -34,6 +34,23 @@ namespace Nutq.Infrastructure.Repositories
                     .ThenInclude(pe => pe.Exercise)
                 .ToListAsync();
         }
+
+        public async Task<TherapyPlan?> GetPlanWithExercisesByIdAsync(int planId)
+        {
+            return await _context.TherapyPlans
+                .Include(tp => tp.PlanExercises!)
+                    .ThenInclude(pe => pe.Exercise)
+                .FirstOrDefaultAsync(tp => tp.Id == planId);
+        }
+
+        public async Task<TherapyPlan?> GetPlanWithExercisesForPatientAsync(int planId, int patientId)
+        {
+            return await _context.TherapyPlans
+                .Where(tp => tp.Id == planId && tp.PatientId == patientId)
+                .Include(tp => tp.PlanExercises!)
+                    .ThenInclude(pe => pe.Exercise)
+                .FirstOrDefaultAsync();
+        }
     }
        
 }

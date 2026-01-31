@@ -89,6 +89,11 @@ namespace Nutq.Core.Services
             return await _planRepo.GetByIdAsync(planId);
         }
 
+        public async Task<TherapyPlan?> GetPlanWithExercisesForPatientAsync(int planId, int patientId)
+        {
+            return await _planRepo.GetPlanWithExercisesForPatientAsync(planId, patientId);
+        }
+
         public async Task DeleteExerciseFromPlanAsync(int planId, int planExerciseId)
         {
             var plan = await _planRepo.GetByIdAsync(planId);

@@ -10,5 +10,7 @@ namespace Nutq.Core.Interfaces
     {
         Task AddOrUpdateProgressAsync(ExerciseProgressCommand command);
         Task<IEnumerable<ExerciseProgress>> GetPatientProgressAsync(int patientId);
+        Task StartExerciseAsync(int patientId, int planExerciseId);
+        Task CompleteExerciseAsync(int patientId, int planExerciseId);
     }
 }
