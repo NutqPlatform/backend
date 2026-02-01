@@ -11,5 +11,7 @@ namespace Nutq.Web.DTOs
         public double? Score { get; set; }
         public bool Completed { get; set; }
         public string ExerciseName { get; set; } = null!;
+        public int CurrentRepetition { get; set; } = 1;
+        public int TotalRepetitions { get; set; } = 1;
     }
 }

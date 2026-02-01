@@ -8,5 +8,7 @@ namespace Nutq.Web.DTOs.PatientDashboard
         public bool Completed { get; set; }
         public double? Score { get; set; }
         public bool Started { get; set; }
+        public int CurrentRepetition { get; set; } = 1;
+        public int TotalRepetitions { get; set; } = 1;
     }
 }

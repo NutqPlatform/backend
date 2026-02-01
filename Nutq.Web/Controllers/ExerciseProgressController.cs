@@ -47,10 +47,54 @@ namespace Nutq.Web.Controllers
                 EndTime = p.EndTime,
                 Score = p.Score,
                 Completed = p.Completed,
-                ExerciseName = p.PlanExercise?.Exercise?.Name ?? "Unknown"
+                ExerciseName = p.PlanExercise?.Exercise?.Name ?? "Unknown",
+                CurrentRepetition = p.CurrentRepetition,
+                TotalRepetitions = p.TotalRepetitions
             }).ToList();
 
             return Ok(dtos);
+        }
+
+        [HttpPost("{patientId}/{planExerciseId}/start")]
+        public async Task<IActionResult> StartExercise(int patientId, int planExerciseId)
+        {
+            try
+            {
+                await _progressService.StartExerciseAsync(patientId, planExerciseId);
+                return Ok(new { message = "Exercise started", startTime = System.DateTime.UtcNow });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("{patientId}/{planExerciseId}/complete-repetition")]
+        public async Task<IActionResult> CompleteRepetition(int patientId, int planExerciseId)
+        {
+            try
+            {
+                await _progressService.CompleteRepetitionAsync(patientId, planExerciseId);
+                return Ok(new { message = "Repetition completed" });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("{patientId}/{planExerciseId}/complete")]
+        public async Task<IActionResult> CompleteExercise(int patientId, int planExerciseId)
+        {
+            try
+            {
+                await _progressService.CompleteExerciseAsync(patientId, planExerciseId);
+                return Ok(new { message = "Exercise completed", endTime = System.DateTime.UtcNow });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 }

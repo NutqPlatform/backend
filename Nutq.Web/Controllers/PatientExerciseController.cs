@@ -151,5 +151,24 @@ namespace Nutq.Web.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Complete a single repetition - increments CurrentRepetition or marks as complete if all repetitions done.
+        /// </summary>
+        /// <param name="patientId">Patient ID</param>
+        /// <param name="planExerciseId">Plan exercise ID</param>
+        [HttpPost("{patientId}/exercises/{planExerciseId}/complete-repetition")]
+        public async Task<IActionResult> CompleteRepetition(int patientId, int planExerciseId)
+        {
+            try
+            {
+                await _exerciseProgressService.CompleteRepetitionAsync(patientId, planExerciseId);
+                return Ok(new { message = "Repetition completed successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

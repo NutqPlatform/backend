@@ -18,40 +18,49 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}")]
         public async Task<IActionResult> GetDashboard(int patientId)
         {
-            var plans = await _service.GetPatientPlansAsync(patientId);
-            var progress = await _service.GetPatientProgressAsync(patientId);
-
-            var result = plans.Select(plan =>
+            try
             {
-                var planExercises = plan.PlanExercises ?? new List<Nutq.Core.Entities.PlanExercise>();
-                var exercisesDto = planExercises.Select(pe =>
+                var plans = await _service.GetPatientPlansAsync(patientId);
+                var progress = await _service.GetPatientProgressAsync(patientId);
+
+                var result = plans.Select(plan =>
                 {
-                    var prog = progress.FirstOrDefault(p => p.PlanExerciseId == pe.Id);
-                    return new ExerciseProgressDto
+                    var planExercises = plan.PlanExercises ?? new List<Nutq.Core.Entities.PlanExercise>();
+                    var exercisesDto = planExercises.Select(pe =>
                     {
-                        PlanExerciseId = pe.Id,
-                        ExerciseId = pe.ExerciseId,
-                        ExerciseName = pe.Exercise.Name,
-                        Completed = prog?.Completed ?? false,
-                        Score = prog?.Score,
-                        Started = prog != null
+                        var prog = progress.FirstOrDefault(p => p.PlanExerciseId == pe.Id);
+                        return new ExerciseProgressDto
+                        {
+                            PlanExerciseId = pe.Id,
+                            ExerciseId = pe.ExerciseId,
+                            ExerciseName = pe.Exercise?.Name ?? "Unknown Exercise",
+                            Completed = prog?.Completed ?? false,
+                            Score = prog?.Score,
+                            Started = prog != null,
+                            CurrentRepetition = prog?.CurrentRepetition ?? 1,
+                            TotalRepetitions = pe.Repetition
+                        };
+                    }).ToList();
+                    var completedCount = exercisesDto.Count(e => e.Completed);
+                    var totalCount = exercisesDto.Count;
+                    var progressPercentage = totalCount > 0 ? (double)completedCount / totalCount * 100 : 0;
+
+                    return new PatientDashboardDto
+                    {
+                        PlanId = plan.Id,
+                        PlanName = plan.Description ?? "Untitled Plan",
+                        PlanStatus = plan.Status,
+                        ProgressPercentage = progressPercentage,
+                        Exercises = exercisesDto
                     };
-                }).ToList();
-                var completedCount = exercisesDto.Count(e => e.Completed);
-                var totalCount = exercisesDto.Count;
-                var progressPercentage = totalCount > 0 ? (double)completedCount / totalCount * 100 : 0;
+                });
 
-                return new PatientDashboardDto
-                {
-                    PlanId = plan.Id,
-                    PlanName = plan.Description ?? "Untitled Plan",
-                    PlanStatus = plan.Status,
-                    ProgressPercentage = progressPercentage,
-                    Exercises = exercisesDto
-                };
-            });
-
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
     }
 }

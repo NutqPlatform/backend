@@ -94,7 +94,9 @@ namespace Nutq.Core.Services
                 StartTime = DateTime.UtcNow,
                 EndTime = null,
                 Score = null,
-                Completed = false
+                Completed = false,
+                CurrentRepetition = 1,
+                TotalRepetitions = planExercise.Repetition
             };
             await _progressRepo.AddAsync(progress);
         }
@@ -117,6 +119,27 @@ namespace Nutq.Core.Services
             existing.Completed = true;
             existing.Score = null;
             await _progressRepo.UpdateAsync(existing);
+        }
+
+        public async Task CompleteRepetitionAsync(int patientId, int planExerciseId)
+        {
+            var existing = await _progressRepo.GetByPatientAndPlanExerciseAsync(patientId, planExerciseId);
+            if (existing == null)
+                throw new Exception("No started exercise found. Start the exercise first.");
+
+            // Move to next repetition
+            if (existing.CurrentRepetition < existing.TotalRepetitions)
+            {
+                existing.CurrentRepetition++;
+                await _progressRepo.UpdateAsync(existing);
+            }
+            else if (existing.CurrentRepetition == existing.TotalRepetitions)
+            {
+                // All repetitions completed, mark as complete
+                existing.EndTime = DateTime.UtcNow;
+                existing.Completed = true;
+                await _progressRepo.UpdateAsync(existing);
+            }
         }
     }
 }

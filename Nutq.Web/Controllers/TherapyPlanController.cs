@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Nutq.Core.Interfaces;
 using Nutq.Core.Commands;
+using Nutq.Core.Entities;
 using Nutq.Web.DTOs; 
 namespace Nutq.Web.Controllers
 {
@@ -10,11 +11,13 @@ namespace Nutq.Web.Controllers
     {
         private readonly ITherapyPlanService _planService;
         private readonly IExerciseProgressRepository _progressRepo;
+        private readonly IPlanExerciseRepository _planExerciseRepo;
 
-        public TherapyPlanController(ITherapyPlanService planService, IExerciseProgressRepository progressRepo)
+        public TherapyPlanController(ITherapyPlanService planService, IExerciseProgressRepository progressRepo, IPlanExerciseRepository planExerciseRepo)
         {
             _planService = planService;
             _progressRepo = progressRepo;
+            _planExerciseRepo = planExerciseRepo;
         }
 
         [HttpPost("doctor/{doctorId}/patients/{patientId}/plan")]
@@ -188,11 +191,13 @@ public async Task<IActionResult> GetPlanProgress(int planId)
         if (plan == null)
             return NotFound(new { error = "Plan not found" });
 
-        var planExerciseIds = plan.PlanExercises == null
-            ? new List<int>()
-            : plan.PlanExercises.Select(pe => pe.Id).ToList();
+        // Get plan exercises with progress data
+        var planExercises = await _planExerciseRepo.GetByPlanIdsAsync(new List<int> { planId }) ?? new List<PlanExercise>();
+        var planExerciseIds = planExercises.Select(pe => pe.Id).ToList();
 
-        var progresses = await _progressRepo.GetByPlanExerciseIdsAsync(planExerciseIds);
+        var progresses = planExerciseIds.Any()
+            ? await _progressRepo.GetByPlanExerciseIdsAsync(planExerciseIds)
+            : new List<ExerciseProgress>();
 
         var completedExercises = progresses
             .Where(p => p.Completed)
@@ -217,6 +222,100 @@ public async Task<IActionResult> GetPlanProgress(int planId)
     {
         return BadRequest(new { error = ex.Message });
     }
+}
+
+[HttpGet("doctor/{doctorId}/ongoing-plans")]
+public async Task<IActionResult> GetOngoingPlans(int doctorId)
+{
+    try
+    {
+        var plans = await _planService.GetActivePlansForDoctorAsync(doctorId);
+
+        var dtos = new List<TherapyPlanDto>();
+        foreach (var plan in plans)
+        {
+            var planExerciseIds = plan.PlanExercises == null
+                ? new List<int>()
+                : plan.PlanExercises.Select(pe => pe.Id).ToList();
+
+            var progresses = planExerciseIds.Any()
+                ? await _progressRepo.GetByPlanExerciseIdsAsync(planExerciseIds)
+                : new List<ExerciseProgress>();
+
+            var completedExercises = progresses
+                .Where(p => p.Completed)
+                .Select(p => p.PlanExerciseId)
+                .Distinct()
+                .Count();
+
+            var totalExercises = planExerciseIds.Count;
+
+            var progressPercentage = totalExercises > 0
+                ? (double)completedExercises / totalExercises * 100
+                : 0;
+
+            var dto = new TherapyPlanDto
+            {
+                Id = plan.Id,
+                Description = plan.Description,
+                Status = plan.Status,
+                StartDate = plan.StartDate,
+                EndDate = plan.EndDate,
+                PatientId = plan.PatientId,
+                PatientName = plan.Patient?.Name,
+                ProgressPercentage = progressPercentage,
+                Exercises = plan.PlanExercises == null
+                    ? new List<PlanExerciseDto>()
+                    : plan.PlanExercises.Select(pe => new PlanExerciseDto
+                    {
+                        Id = pe.Id,
+                        TherapyPlanId = pe.TherapyPlanId,
+                        ExerciseId = pe.ExerciseId,
+                        DurationMinutes = pe.DurationMinutes,
+                        Repetition = pe.Repetition,
+                        AiConstraints = pe.AiConstraints,
+                        Exercise = new ExerciseDto
+                        {
+                            Id = pe.Exercise.Id,
+                            Name = pe.Exercise.Name,
+                            Description = pe.Exercise.Description,
+                            Category = pe.Exercise.Category,
+                            Difficulty = pe.Exercise.Difficulty
+                        }
+                    }).ToList()
+            };
+            dtos.Add(dto);
+        }
+
+        return Ok(dtos);
+    }
+    catch (Exception ex)
+    {
+        return BadRequest(new { error = ex.Message });
+    }
+}
+
+private double CalculatePlanProgress(TherapyPlan plan)
+{
+    if (plan.PlanExercises == null || !plan.PlanExercises.Any())
+        return 0;
+
+    int completedExercises = 0;
+    int totalExercises = plan.PlanExercises.Count;
+
+    foreach (var pe in plan.PlanExercises)
+    {
+        if (pe.ExerciseProgressRecords != null && pe.ExerciseProgressRecords.Any())
+        {
+            var latestProgress = pe.ExerciseProgressRecords.OrderByDescending(ep => ep.StartTime).FirstOrDefault();
+            if (latestProgress != null && latestProgress.Completed)
+            {
+                completedExercises++;
+            }
+        }
+    }
+
+    return totalExercises > 0 ? (double)completedExercises / totalExercises * 100 : 0;
 }
 
        }

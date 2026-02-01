@@ -23,6 +23,13 @@ namespace Nutq.Core.Entities
 
         public bool Completed { get; set; }
 
+        // Repetition tracking
+        [Range(1, 100)]
+        public int CurrentRepetition { get; set; } = 1;
+
+        [Range(1, 100)]
+        public int TotalRepetitions { get; set; } = 1;
+
         // Navigation
         public Patient Patient { get; set; } = null!;
         public PlanExercise PlanExercise { get; set; } = null!;

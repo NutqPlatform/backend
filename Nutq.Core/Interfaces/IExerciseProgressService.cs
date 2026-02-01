@@ -12,5 +12,6 @@ namespace Nutq.Core.Interfaces
         Task<IEnumerable<ExerciseProgress>> GetPatientProgressAsync(int patientId);
         Task StartExerciseAsync(int patientId, int planExerciseId);
         Task CompleteExerciseAsync(int patientId, int planExerciseId);
+        Task CompleteRepetitionAsync(int patientId, int planExerciseId);
     }
 }
