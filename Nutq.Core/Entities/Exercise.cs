@@ -26,6 +26,8 @@ namespace Nutq.Core.Entities
 
         public string? AssetUrl { get; set; }
 
+        public string? ImageUrl { get; set; }
+
         // Navigation
         public DifficultyLevel DifficultyLevel { get; set; } = null!;
         public ICollection<PlanExercise>? PlanExercises { get; set; }

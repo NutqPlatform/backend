@@ -295,6 +295,78 @@ public async Task<IActionResult> GetOngoingPlans(int doctorId)
     }
 }
 
+[HttpGet("doctor/{doctorId}/plans/all")]
+public async Task<IActionResult> GetAllPlansForDoctor(int doctorId)
+{
+    try
+    {
+        var plans = await _planService.GetPlansByDoctorAsync(doctorId);
+
+        var dtos = new List<TherapyPlanDto>();
+        foreach (var plan in plans)
+        {
+            var planExerciseIds = plan.PlanExercises == null
+                ? new List<int>()
+                : plan.PlanExercises.Select(pe => pe.Id).ToList();
+
+            var progresses = planExerciseIds.Any()
+                ? await _progressRepo.GetByPlanExerciseIdsAsync(planExerciseIds)
+                : new List<ExerciseProgress>();
+
+            var completedExercises = progresses
+                .Where(p => p.Completed)
+                .Select(p => p.PlanExerciseId)
+                .Distinct()
+                .Count();
+
+            var totalExercises = planExerciseIds.Count;
+
+            var progressPercentage = totalExercises > 0
+                ? (double)completedExercises / totalExercises * 100
+                : 0;
+
+            var dto = new TherapyPlanDto
+            {
+                Id = plan.Id,
+                Description = plan.Description,
+                Status = plan.Status,
+                StartDate = plan.StartDate,
+                EndDate = plan.EndDate,
+                PatientId = plan.PatientId,
+                PatientName = plan.Patient?.Name,
+                ProgressPercentage = progressPercentage,
+                Exercises = plan.PlanExercises == null
+                    ? new List<PlanExerciseDto>()
+                    : plan.PlanExercises.Select(pe => new PlanExerciseDto
+                    {
+                        Id = pe.Id,
+                        TherapyPlanId = pe.TherapyPlanId,
+                        ExerciseId = pe.ExerciseId,
+                        DurationMinutes = pe.DurationMinutes,
+                        Repetition = pe.Repetition,
+                        AiConstraints = pe.AiConstraints,
+                        Exercise = new ExerciseDto
+                        {
+                            Id = pe.Exercise.Id,
+                            Name = pe.Exercise.Name,
+                            Description = pe.Exercise.Description,
+                            Category = pe.Exercise.Category,
+                            Difficulty = pe.Exercise.Difficulty
+                        }
+                    }).ToList()
+            };
+
+            dtos.Add(dto);
+        }
+
+        return Ok(dtos);
+    }
+    catch (Exception ex)
+    {
+        return BadRequest(new { error = ex.Message });
+    }
+}
+
 private double CalculatePlanProgress(TherapyPlan plan)
 {
     if (plan.PlanExercises == null || !plan.PlanExercises.Any())

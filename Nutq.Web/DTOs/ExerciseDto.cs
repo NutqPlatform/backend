@@ -8,5 +8,7 @@ namespace Nutq.Web.DTOs
         public string? Category { get; set; }
         public string? Difficulty { get; set; }
         public int DifficultyId { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? AssetUrl { get; set; }
     }
 }

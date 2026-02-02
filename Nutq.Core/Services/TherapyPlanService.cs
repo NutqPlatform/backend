@@ -131,5 +131,10 @@ namespace Nutq.Core.Services
     );
 }
 
+        public async Task<IEnumerable<TherapyPlan>> GetPlansByDoctorAsync(int doctorId)
+        {
+            return await _planRepo.GetPlansByDoctorAsync(doctorId);
+        }
+
     }
 }

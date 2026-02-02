@@ -15,6 +15,7 @@ namespace Nutq.Core.Interfaces
         Task DeleteExerciseFromPlanAsync(int planId, int planExerciseId);
         Task UpdatePlanStatusAsync(int planId, string status);
         Task<IEnumerable<TherapyPlan>> GetActivePlansForDoctorAsync(int doctorId);
+        Task<IEnumerable<TherapyPlan>> GetPlansByDoctorAsync(int doctorId);
 
     }
 }

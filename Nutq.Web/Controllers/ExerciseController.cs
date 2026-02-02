@@ -27,7 +27,9 @@ namespace Nutq.Web.Controllers
                 Description = e.Description,
                 Category = e.Category,
                 Difficulty = e.Difficulty,
-                DifficultyId = e.DifficultyId
+                DifficultyId = e.DifficultyId,
+                ImageUrl = e.ImageUrl,
+                AssetUrl = e.AssetUrl
             });
 
             return Ok(dto);
@@ -46,7 +48,9 @@ namespace Nutq.Web.Controllers
                 Description = e.Description,
                 Category = e.Category,
                 Difficulty = e.Difficulty,
-                DifficultyId = e.DifficultyId
+                DifficultyId = e.DifficultyId,
+                ImageUrl = e.ImageUrl,
+                AssetUrl = e.AssetUrl
             });
         }
 
@@ -62,7 +66,9 @@ namespace Nutq.Web.Controllers
                 Description = e.Description,
                 Category = e.Category,
                 Difficulty = e.Difficulty,
-                DifficultyId = e.DifficultyId
+                DifficultyId = e.DifficultyId,
+                ImageUrl = e.ImageUrl,
+                AssetUrl = e.AssetUrl
             });
 
             return Ok(dto);

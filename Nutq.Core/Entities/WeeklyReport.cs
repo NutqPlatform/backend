@@ -14,6 +14,9 @@ namespace Nutq.Core.Entities
         [ForeignKey(nameof(Patient))]
         public int PatientId { get; set; }
 
+        [ForeignKey(nameof(TherapyPlan))]
+        public int? TherapyPlanId { get; set; }
+
         [Required]
         public DateTime StartDate { get; set; }
 
@@ -29,5 +32,6 @@ namespace Nutq.Core.Entities
         // Navigation
         public Doctor Doctor { get; set; } = null!;
         public Patient Patient { get; set; } = null!;
+        public TherapyPlan? TherapyPlan { get; set; }
     }
 }
