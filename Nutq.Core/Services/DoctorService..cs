@@ -1,6 +1,7 @@
 using Nutq.Core.Entities;
 using Nutq.Core.Interfaces;
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
@@ -161,6 +162,75 @@ public async Task UpdateDoctorPasswordAsync(int doctorId, string currentPassword
 
     doctor.Password = newPassword;
     await _doctorRepo.UpdateAsync(doctor);
+}
+
+public async Task<IEnumerable<object>> GetAllDoctorsWithCommunicationsAsync()
+{
+    var doctors = await _doctorRepo.GetAllWithPatientsAndReportsAsync();
+
+    return doctors.Select(d => new
+    {
+        d.Id,
+        d.Name,
+        d.Email,
+        d.ProfilePicture,
+        d.CV,
+        Patients = d.Patients?.Select(p => new
+        {
+            p.Id,
+            p.Name,
+            p.Email,
+            p.Age,
+            p.ProfilePicture
+        }) ?? Enumerable.Empty<object>(),
+        WeeklyReports = d.WeeklyReports?.Select(r => new
+        {
+            r.Id,
+            r.PatientId,
+            PatientName = r.Patient?.Name,
+            r.StartDate,
+            r.EndDate,
+            r.TotalHours,
+            r.DoctorNotes,
+            r.AiSummary
+        }) ?? Enumerable.Empty<object>()
+    });
+}
+
+public async Task<object> GetDoctorWithCommunicationsAsync(int doctorId)
+{
+    var doctors = await _doctorRepo.GetAllWithPatientsAndReportsAsync();
+    var doctor = doctors.FirstOrDefault(d => d.Id == doctorId);
+    if (doctor == null)
+        throw new Exception("Doctor not found");
+
+    return new
+    {
+        doctor.Id,
+        doctor.Name,
+        doctor.Email,
+        doctor.ProfilePicture,
+        doctor.CV,
+        Patients = doctor.Patients?.Select(p => new
+        {
+            p.Id,
+            p.Name,
+            p.Email,
+            p.Age,
+            p.ProfilePicture
+        }) ?? Enumerable.Empty<object>(),
+        WeeklyReports = doctor.WeeklyReports?.Select(r => new
+        {
+            r.Id,
+            r.PatientId,
+            PatientName = r.Patient?.Name,
+            r.StartDate,
+            r.EndDate,
+            r.TotalHours,
+            r.DoctorNotes,
+            r.AiSummary
+        }) ?? Enumerable.Empty<object>()
+    };
 }
 
     }

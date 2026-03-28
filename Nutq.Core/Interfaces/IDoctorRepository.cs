@@ -6,6 +6,7 @@ namespace Nutq.Core.Interfaces
     {
         Task<Doctor?> GetByEmailAsync(string email);
         Task<List<Patient>> GetPatientsAsync(int doctorId);
-        
+
+        Task<List<Doctor>> GetAllWithPatientsAndReportsAsync();
     }
 }

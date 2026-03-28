@@ -23,5 +23,15 @@ namespace Nutq.Infrastructure.Repositories
                 .Where(p => p.DoctorId == doctorId)
                 .ToListAsync();
         }
+
+        public async Task<List<Doctor>> GetAllWithPatientsAndReportsAsync()
+        {
+            return await _context.Doctors
+                .Include(d => d.Patients)
+                .Include(d => d.WeeklyReports!)
+                    .ThenInclude(w => w.Patient)
+                .AsNoTracking()
+                .ToListAsync();
+        }
     }
 }

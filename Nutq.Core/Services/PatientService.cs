@@ -1,6 +1,7 @@
 using Nutq.Core.Entities;
 using Nutq.Core.Interfaces;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Nutq.Core.Services
@@ -9,11 +10,13 @@ namespace Nutq.Core.Services
     {
         private readonly IPatientRepository _patientRepo;
         private readonly IDoctorRepository _doctorRepo;
+        private readonly IWeeklyReportRepository _weeklyReportRepo;
 
-        public PatientService(IPatientRepository patientRepo, IDoctorRepository doctorRepo)
+        public PatientService(IPatientRepository patientRepo, IDoctorRepository doctorRepo, IWeeklyReportRepository weeklyReportRepo)
         {
             _patientRepo = patientRepo;
             _doctorRepo = doctorRepo;
+            _weeklyReportRepo = weeklyReportRepo;
         }
 
         public async Task<object> GetPatientProfileAsync(int patientId)
@@ -69,13 +72,32 @@ namespace Nutq.Core.Services
             if (doctor == null)
                 return null;
 
+            var patientsWithSameDoctor = await _patientRepo.GetByDoctorIdAsync(doctor.Id);
+            var weeklyReports = await _weeklyReportRepo.GetByPatientIdAsync(patientId);
+
             return new
             {
                 doctor.Id,
                 doctor.Name,
                 doctor.Email,
                 doctor.ProfilePicture,
-                doctor.CV
+                doctor.CV,
+                Patients = patientsWithSameDoctor?.Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.Age,
+                    p.ProfilePicture
+                }) ?? Enumerable.Empty<object>(),
+                Communication = weeklyReports?.Select(r => new
+                {
+                    r.Id,
+                    r.StartDate,
+                    r.EndDate,
+                    r.TotalHours,
+                    r.DoctorNotes,
+                    r.AiSummary
+                }) ?? Enumerable.Empty<object>()
             };
         }
     }

@@ -18,6 +18,10 @@ namespace Nutq.Core.Interfaces
     Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture, string? cv);
     
     Task UpdateDoctorPasswordAsync(int doctorId, string currentPassword, string newPassword);
+
+    Task<IEnumerable<object>> GetAllDoctorsWithCommunicationsAsync();
+
+    Task<object> GetDoctorWithCommunicationsAsync(int doctorId);
 }
 
 }

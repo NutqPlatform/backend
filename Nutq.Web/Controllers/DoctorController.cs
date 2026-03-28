@@ -129,5 +129,36 @@ public async Task<IActionResult> UpdatePassword(int doctorId, [FromBody] UpdateP
     }
 }
 
+[HttpGet("all")]
+public async Task<IActionResult> GetAllDoctorsWithCommunications()
+{
+    try
+    {
+        var doctors = await _doctorService.GetAllDoctorsWithCommunicationsAsync();
+        return Ok(new { doctors });
+    }
+    catch (Exception ex)
+    {
+        return BadRequest(new { success = false, error = ex.Message });
+    }
+}
+
+[HttpGet("{doctorId}/communications")]
+public async Task<IActionResult> GetDoctorCommunications(int doctorId)
+{
+    try
+    {
+        var doctor = await _doctorService.GetDoctorWithCommunicationsAsync(doctorId);
+        return Ok(doctor);
+    }
+    catch (Exception ex)
+    {
+        if (ex.Message.Contains("not found"))
+            return NotFound(new { success = false, error = ex.Message });
+
+        return BadRequest(new { success = false, error = ex.Message });
+    }
+}
+
     }
 }
