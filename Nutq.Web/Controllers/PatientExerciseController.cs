@@ -92,7 +92,14 @@ namespace Nutq.Web.Controllers
                 if (plan == null)
                     return NotFound(new { error = "Plan exercise does not belong to this patient" });
 
-                var vocabularies = await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync("Fruits", "Easy");
+                var category = planExercise.Exercise?.Category ?? "tools";
+                var difficulty = planExercise.Exercise?.Difficulty ?? "Easy";
+
+                var vocabularies = (await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync(category, difficulty)).ToList();
+                if (!vocabularies.Any())
+                {
+                    vocabularies = (await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync(category, "Easy")).ToList();
+                }
 
                 var dtos = vocabularies.Select(v => new VocabularyDto
                 {
