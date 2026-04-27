@@ -1,0 +1,4 @@
+UPDATE "Vocabularies"
+SET "ImageUrl" = CONCAT('/assets/images/fruits/', "WordEnglish", '.png'),
+    "SoundUrl" = CONCAT('/assets/sounds/fruits/', "WordEnglish", '.mp3')
+WHERE "Category" = 'Fruits' AND "DifficultyLevelId" = 1;

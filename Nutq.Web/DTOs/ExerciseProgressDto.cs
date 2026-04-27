@@ -1,0 +1,19 @@
+
+namespace Nutq.Web.DTOs
+{
+    public class ExerciseProgressDto
+    {
+        public int Id { get; set; }
+        public int PatientId { get; set; }
+        public int PlanExerciseId { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public double? Score { get; set; }
+        public bool Completed { get; set; }
+        public string ExerciseName { get; set; } = null!;
+        public int CurrentRepetition { get; set; } = 1;
+        public int TotalRepetitions { get; set; } = 1;
+        /// <summary>JSON analytics data for AI/doctor analysis</summary>
+        public string? SessionData { get; set; }
+    }
+}
