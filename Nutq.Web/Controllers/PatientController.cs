@@ -34,8 +34,22 @@ namespace Nutq.Web.Controllers
         {
             try
             {
-                await _patientService.UpdatePatientProfileAsync(patientId, dto.ProfilePicture);
-                return Ok(new { success = true, message = "Profile updated successfully" });
+                DateTime? parsedDob = null;
+                if (!string.IsNullOrWhiteSpace(dto.DateOfBirth))
+                {
+                    if (DateTime.TryParse(dto.DateOfBirth, out var dt))
+                        parsedDob = DateTime.SpecifyKind(dt.Date, DateTimeKind.Utc);
+                }
+
+                await _patientService.UpdatePatientProfileAsync(
+                    patientId,
+                    dto.ProfilePicture,
+                    dto.PhoneNumber,
+                    parsedDob
+                );
+
+                var updated = await _patientService.GetPatientProfileAsync(patientId);
+                return Ok(updated);
             }
             catch (Exception ex)
             {

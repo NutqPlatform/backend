@@ -4,7 +4,10 @@ namespace Nutq.Core.Auth.DTOs
     {
         public string InvitationCode { get; set; } = string.Empty; // كود الدعوة من الدكتور
         public string Name { get; set; } = string.Empty;
-        public int Age { get; set; }
+        // ISO date for birth, optional
+        public DateTime? DateOfBirth { get; set; }
+        // optional phone number
+        public string? PhoneNumber { get; set; }
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }

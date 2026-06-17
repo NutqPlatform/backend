@@ -11,11 +11,12 @@ namespace Nutq.Core.Interfaces
     
     Task<object?> GetPatientByIdAsync(int doctorId, int patientId);
     
-    Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis);
+    Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis, string? diagnosisFileUrl = null);
     
     Task<object> GetDoctorProfileAsync(int doctorId);
     
-    Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture, string? cv);
+    Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture, string? cv,
+        string? name = null, string? phoneNumber = null, string? communicationInfo = null, string? address = null, DateTime? dateOfBirth = null, string? cvText = null);
     
     Task UpdateDoctorPasswordAsync(int doctorId, string currentPassword, string newPassword);
 

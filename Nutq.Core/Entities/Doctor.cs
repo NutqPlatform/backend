@@ -16,15 +16,33 @@ namespace Nutq.Core.Entities
         [Required, MaxLength(255)]
         public string Password { get; set; } = null!;
 
+        public string? CvText { get; set; }
+
         [MaxLength(500)]
-        public string? CV { get; set; }
+        public string? CvFileUrl { get; set; }
+
+        public DateTime? DateOfBirth { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        [MaxLength(30)]
+        public string? PhoneNumber { get; set; }
+
+        public string? Address { get; set; }
+
+        public string? CommunicationInfo { get; set; }
 
         public string? ProfilePicture { get; set; }
+
+        public bool IsBlocked { get; set; } = false;
+
+        public double AverageRating { get; set; } = 0;
 
         // Navigation
         public ICollection<Patient>? Patients { get; set; }
         public ICollection<TherapyPlan>? TherapyPlans { get; set; }
         public ICollection<InvitationCode>? InvitationCodes { get; set; }
         public ICollection<WeeklyReport>? WeeklyReports { get; set; }
+        public ICollection<DoctorReview>? Reviews { get; set; }
     }
 }

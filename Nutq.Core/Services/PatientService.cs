@@ -30,14 +30,19 @@ namespace Nutq.Core.Services
                 patient.Id,
                 patient.Name,
                 patient.Email,
-                patient.Age,
-                patient.Diagnosis,
-                patient.ProfilePicture,
-                DoctorId = patient.DoctorId
+                dateOfBirth = patient.DateOfBirth,
+                phoneNumber = patient.PhoneNumber,
+                age = patient.DateOfBirth.HasValue ?
+                    (int)((DateTime.UtcNow - patient.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+                createdAt = patient.CreatedAt,
+                diagnosis = patient.DiagnosisText,
+                diagnosisFileUrl = patient.DiagnosisFileUrl,
+                profilePicture = patient.ProfilePicture,
+                doctorId = patient.DoctorId
             };
         }
 
-        public async Task UpdatePatientProfileAsync(int patientId, string? profilePicture)
+        public async Task UpdatePatientProfileAsync(int patientId, string? profilePicture, string? phoneNumber = null, DateTime? dateOfBirth = null)
         {
             var patient = await _patientRepo.GetByIdAsync(patientId);
             if (patient == null)
@@ -45,6 +50,12 @@ namespace Nutq.Core.Services
 
             if (profilePicture != null)
                 patient.ProfilePicture = profilePicture;
+
+            if (phoneNumber != null)
+                patient.PhoneNumber = phoneNumber;
+
+            if (dateOfBirth.HasValue)
+                patient.DateOfBirth = dateOfBirth.Value;
 
             await _patientRepo.UpdateAsync(patient);
         }
@@ -80,23 +91,36 @@ namespace Nutq.Core.Services
                 doctor.Id,
                 doctor.Name,
                 doctor.Email,
-                doctor.ProfilePicture,
-                doctor.CV,
-                Patients = patientsWithSameDoctor?.Select(p => new
+                profilePicture = doctor.ProfilePicture,
+                cv = doctor.CvFileUrl,
+                phoneNumber = doctor.PhoneNumber,
+                address = doctor.Address,
+                communicationInfo = doctor.CommunicationInfo,
+                cvText = doctor.CvText,
+                dateOfBirth = doctor.DateOfBirth,
+                age = doctor.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - doctor.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+                averageRating = doctor.AverageRating,
+                createdAt = doctor.CreatedAt,
+                patients = patientsWithSameDoctor?.Select(p => new
                 {
                     p.Id,
                     p.Name,
-                    p.Age,
-                    p.ProfilePicture
+                    p.Email,
+                    dateOfBirth = p.DateOfBirth,
+                    phoneNumber = p.PhoneNumber,
+                    age = p.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - p.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+                    createdAt = p.CreatedAt,
+                    profilePicture = p.ProfilePicture
                 }) ?? Enumerable.Empty<object>(),
-                Communication = weeklyReports?.Select(r => new
+                weeklyReports = weeklyReports?.Select(r => new
                 {
                     r.Id,
-                    r.StartDate,
-                    r.EndDate,
-                    r.TotalHours,
-                    r.DoctorNotes,
-                    r.AiSummary
+                    patientId = r.PatientId,
+                    startDate = r.StartDate,
+                    endDate = r.EndDate,
+                    totalHours = r.TotalHours,
+                    doctorNotes = r.DoctorNotes,
+                    aiSummary = r.AiSummary
                 }) ?? Enumerable.Empty<object>()
             };
         }

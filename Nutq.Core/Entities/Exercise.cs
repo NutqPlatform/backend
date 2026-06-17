@@ -16,8 +16,13 @@ namespace Nutq.Core.Entities
 
         public string? Description { get; set; }
 
+        [NotMapped]
         [MaxLength(50)]
-        public string? Difficulty { get; set; }
+        public string? Difficulty
+        {
+            get => DifficultyLevel?.Name;
+            set { /* Intentionally no-op: difficulty stored via DifficultyLevel relationship */ }
+        }
 
         [MaxLength(100)]
         public string? Category { get; set; }

@@ -15,14 +15,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register repositories and services
 builder.Services.AddScoped<IPatientRepository, PatientRepository>();
 builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IPlanExerciseRepository, PlanExerciseRepository>();
 builder.Services.AddScoped<IExerciseRepository, ExerciseRepository>();
 builder.Services.AddScoped<IDifficultyLevelRepository, DifficultyLevelRepository>();
 builder.Services.AddScoped<IVocabularyRepository, VocabularyRepository>();
+builder.Services.AddScoped<IVocabularyExerciseRepository, VocabularyExerciseRepository>();
 builder.Services.AddScoped<IWeeklyReportRepository, WeeklyReportRepository>();
 builder.Services.AddScoped<IInvitationCodeRepository, InvitationCodeRepository>();
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
 builder.Services.AddScoped<ITherapyPlanRepository, TherapyPlanRepository>();
+builder.Services.AddScoped<IDoctorReviewRepository, DoctorReviewRepository>();
 
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
 builder.Services.AddScoped<IExerciseProgressService, ExerciseProgressService>();
@@ -34,6 +37,8 @@ builder.Services.AddScoped<ITherapyPlanService, TherapyPlanService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IDoctorReviewService, DoctorReviewService>();
 
 builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
 builder.Services.AddScoped<IPatientService, PatientService>();
@@ -44,7 +49,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5175")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

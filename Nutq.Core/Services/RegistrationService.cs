@@ -33,6 +33,10 @@ namespace Nutq.Core.Services
                 Password = command.Password
             };
 
+            if (!string.IsNullOrWhiteSpace(command.PhoneNumber))
+                doctor.PhoneNumber = command.PhoneNumber;
+
+            doctor.CreatedAt = DateTime.UtcNow;
             await _doctorRepo.AddAsync(doctor);
 
           
@@ -41,7 +45,7 @@ namespace Nutq.Core.Services
             return true;
         }
 
-      public async Task<bool> RegisterPatientAsync(PatientRegisterCommand command)
+    public async Task<bool> RegisterPatientAsync(PatientRegisterCommand command)
 {
     var code = await _inviteRepo.GetValidCodeAsync(command.InvitationCode, "Patient");
     if (code == null || code.DoctorId == null)
@@ -53,8 +57,10 @@ namespace Nutq.Core.Services
         Name = command.Name,
         Email = command.Email,
         Password = command.Password,
-        Age = command.Age,
-        Diagnosis = ""
+        DateOfBirth = command.DateOfBirth,
+            DiagnosisText = "",
+            PhoneNumber = command.PhoneNumber ?? string.Empty,
+            CreatedAt = DateTime.UtcNow
     };
 
     await _patientRepo.AddAsync(patient);

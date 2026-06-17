@@ -6,5 +6,6 @@ namespace Nutq.Core.Commands
         public string? Status { get; set; } = "Active";
         public DateTime StartDate { get; set; } = DateTime.UtcNow;
         public DateTime? EndDate { get; set; }
+        public List<AddPlanExerciseCommand> Exercises { get; set; } = new();
     }
 }

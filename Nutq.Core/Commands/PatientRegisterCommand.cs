@@ -4,7 +4,8 @@ namespace Nutq.Core.Commands
         string Name,
         string Email,
         string Password,
-        int Age,
-        string InvitationCode
+        DateTime? DateOfBirth,
+        string InvitationCode,
+        string? PhoneNumber
     );
 }

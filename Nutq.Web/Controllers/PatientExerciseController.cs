@@ -16,20 +16,25 @@ namespace Nutq.Web.Controllers
     {
         private readonly ITherapyPlanService _therapyPlanService;
         private readonly IVocabularyRepository _vocabularyRepo;
+        private readonly IVocabularyExerciseRepository _vocabExerciseRepo;
         private readonly IExerciseProgressService _exerciseProgressService;
         private readonly IPlanExerciseRepository _planExerciseRepo;
 
         public PatientExerciseController(
             ITherapyPlanService therapyPlanService,
             IVocabularyRepository vocabularyRepo,
+            IVocabularyExerciseRepository vocabExerciseRepo,
             IExerciseProgressService exerciseProgressService,
             IPlanExerciseRepository planExerciseRepo)
         {
             _therapyPlanService = therapyPlanService;
             _vocabularyRepo = vocabularyRepo;
+            _vocabExerciseRepo = vocabExerciseRepo;
             _exerciseProgressService = exerciseProgressService;
             _planExerciseRepo = planExerciseRepo;
         }
+
+        
 
         /// <summary>
         /// Get all exercises assigned to a specific therapy plan. Only returns plans belonging to the patient.
@@ -92,13 +97,24 @@ namespace Nutq.Web.Controllers
                 if (plan == null)
                     return NotFound(new { error = "Plan exercise does not belong to this patient" });
 
-                var category = planExercise.Exercise?.Category ?? "tools";
-                var difficulty = planExercise.Exercise?.Difficulty ?? "Easy";
+                // Try fetching explicit vocabulary links for this exercise first
+                var linkedVocab = (await _vocabExerciseRepo.GetByExerciseIdAsync(planExercise.ExerciseId)).ToList();
+                List<Nutq.Core.Entities.Vocabulary> vocabularies;
 
-                var vocabularies = (await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync(category, difficulty)).ToList();
-                if (!vocabularies.Any())
+                if (linkedVocab.Any())
                 {
-                    vocabularies = (await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync(category, "Easy")).ToList();
+                    vocabularies = linkedVocab.Select(l => l.Vocabulary).ToList();
+                }
+                else
+                {
+                    var category = planExercise.Exercise?.Category ?? "tools";
+                    var difficulty = planExercise.Exercise?.Difficulty ?? planExercise.Exercise?.DifficultyLevel?.Name ?? "Easy";
+
+                    vocabularies = (await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync(category, difficulty)).ToList();
+                    if (!vocabularies.Any())
+                    {
+                        vocabularies = (await _vocabularyRepo.GetByCategoryAndDifficultyLevelAsync(category, "Easy")).ToList();
+                    }
                 }
 
                 var dtos = vocabularies.Select(v => new VocabularyDto

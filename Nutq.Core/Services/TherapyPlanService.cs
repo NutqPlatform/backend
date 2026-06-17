@@ -31,6 +31,9 @@ namespace Nutq.Core.Services
 
         public async Task<TherapyPlan> CreatePlanAsync(int doctorId, int patientId, CreateTherapyPlanCommand command)
 {
+    if (command.Exercises == null || command.Exercises.Count == 0)
+        throw new Exception("A therapy plan must contain at least one exercise.");
+
     var doctor = await _doctorRepo.GetByIdAsync(doctorId);
     if (doctor == null) throw new Exception("Doctor not found");
 
@@ -38,7 +41,6 @@ namespace Nutq.Core.Services
     if (patient == null) throw new Exception("Patient not found");
     if (patient.DoctorId != doctorId)
         throw new Exception("You cannot create a plan for a patient not assigned to you.");
-
 
     var plan = new TherapyPlan
     {
@@ -52,29 +54,47 @@ namespace Nutq.Core.Services
 
     await _planRepo.AddAsync(plan);
 
+    foreach (var exerciseCommand in command.Exercises)
+    {
+        await AddExerciseToPlanInternalAsync(plan.Id, exerciseCommand);
+    }
+
     return plan;
 }
 
-        public async Task<PlanExercise> AddExerciseToPlanAsync(int planId, AddPlanExerciseCommand command)
-{
-    var plan = await _planRepo.GetByIdAsync(planId);
-    if (plan == null) throw new Exception("Therapy plan not found");
+        public async Task<IEnumerable<PlanExercise>> AddExerciseToPlanAsync(int planId, AddPlanExerciseCommand command)
+        {
+            var plan = await _planRepo.GetByIdAsync(planId);
+            if (plan == null) throw new Exception("Therapy plan not found");
 
+            return await AddExerciseToPlanInternalAsync(planId, command);
+        }
+
+        private async Task<IEnumerable<PlanExercise>> AddExerciseToPlanInternalAsync(int planId, AddPlanExerciseCommand command)
+{
     var exercise = await _exerciseRepo.GetByIdAsync(command.ExerciseId);
     if (exercise == null) throw new Exception("Exercise not found");
 
-    var planExercise = new PlanExercise
+    if (command.Repetition < 1)
+        throw new Exception("Repetition must be at least 1");
+
+    var created = new List<PlanExercise>();
+    for (var i = 0; i < command.Repetition; i++)
     {
-        TherapyPlanId = planId,
-        ExerciseId = command.ExerciseId,
-        DurationMinutes = command.DurationMinutes,
-        Repetition = command.Repetition,
-        AiConstraints = command.AiConstraints
-    };
+        var planExercise = new PlanExercise
+        {
+            TherapyPlanId = planId,
+            ExerciseId = command.ExerciseId,
+            DurationMinutes = command.DurationMinutes,
+            Repetition = 1,
+            AiConstraints = command.AiConstraints
+        };
 
-    var created = await _planExerciseRepo.AddAsync(planExercise);
+        var saved = await _planExerciseRepo.AddAsync(planExercise);
+        saved.Exercise = exercise;
+        created.Add(saved);
+    }
 
-    
     return created;
 }
 
@@ -107,6 +127,10 @@ namespace Nutq.Core.Services
             
             if (planExercise.TherapyPlanId != planId)
                 throw new Exception("Exercise does not belong to this plan");
+
+            var planExercises = await _planExerciseRepo.GetByPlanIdsAsync(new List<int> { planId });
+            if (planExercises.Count <= 1)
+                throw new Exception("A therapy plan must contain at least one exercise.");
 
             await _planExerciseRepo.DeleteAsync(planExerciseId);
         }

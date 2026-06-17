@@ -78,7 +78,12 @@ public async Task<IEnumerable<object>> GetDoctorPatientsAsync(int doctorId)
         p.Id,
         p.Name,
         p.Email,
-        p.Age
+        dateOfBirth = p.DateOfBirth,
+        phoneNumber = p.PhoneNumber,
+        age = p.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - p.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+        profilePicture = p.ProfilePicture,
+        diagnosis = p.DiagnosisText,
+        createdAt = p.CreatedAt
     });
 }
 
@@ -100,13 +105,17 @@ public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
         patient.Id,
         patient.Name,
         patient.Email,
-        patient.Age,
-        patient.Diagnosis,
-        patient.ProfilePicture
+        dateOfBirth = patient.DateOfBirth,
+        phoneNumber = patient.PhoneNumber,
+        age = patient.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - patient.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+        diagnosis = patient.DiagnosisText,
+        diagnosisFileUrl = patient.DiagnosisFileUrl,
+        profilePicture = patient.ProfilePicture,
+        createdAt = patient.CreatedAt
     };
 }
 
-public async Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis)
+        public async Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis, string? diagnosisFileUrl = null)
 {
     var doctor = await _doctorRepo.GetByIdAsync(doctorId);
     if (doctor == null)
@@ -116,7 +125,11 @@ public async Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, strin
     if (patient == null || patient.DoctorId != doctorId)
         throw new Exception("Patient not found or does not belong to this doctor");
 
-    patient.Diagnosis = diagnosis;
+            patient.DiagnosisText = diagnosis;
+            if (!string.IsNullOrEmpty(diagnosisFileUrl))
+            {
+                patient.DiagnosisFileUrl = diagnosisFileUrl;
+            }
     await _patientRepo.UpdateAsync(patient);
 }
 
@@ -131,12 +144,21 @@ public async Task<object> GetDoctorProfileAsync(int doctorId)
         doctor.Id,
         doctor.Name,
         doctor.Email,
-        doctor.ProfilePicture,
-        doctor.CV
+        profilePicture = doctor.ProfilePicture,
+        cv = doctor.CvFileUrl,
+        phoneNumber = doctor.PhoneNumber,
+        dateOfBirth = doctor.DateOfBirth,
+        age = doctor.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - doctor.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+        communicationInfo = doctor.CommunicationInfo,
+        address = doctor.Address,
+        cvText = doctor.CvText,
+        createdAt = doctor.CreatedAt,
+        averageRating = doctor.AverageRating
     };
 }
 
-public async Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture, string? cv)
+public async Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture, string? cv,
+    string? name = null, string? phoneNumber = null, string? communicationInfo = null, string? address = null, DateTime? dateOfBirth = null, string? cvText = null)
 {
     var doctor = await _doctorRepo.GetByIdAsync(doctorId);
     if (doctor == null)
@@ -144,9 +166,27 @@ public async Task UpdateDoctorProfileAsync(int doctorId, string? profilePicture,
 
     if (profilePicture != null)
         doctor.ProfilePicture = profilePicture;
-    
+
     if (cv != null)
-        doctor.CV = cv;
+        doctor.CvFileUrl = cv;
+
+    if (name != null)
+        doctor.Name = name;
+
+    if (phoneNumber != null)
+        doctor.PhoneNumber = phoneNumber;
+
+    if (communicationInfo != null)
+        doctor.CommunicationInfo = communicationInfo;
+
+    if (address != null)
+        doctor.Address = address;
+
+    if (dateOfBirth.HasValue)
+        doctor.DateOfBirth = dateOfBirth.Value;
+
+    if (cvText != null)
+        doctor.CvText = cvText;
 
     await _doctorRepo.UpdateAsync(doctor);
 }
@@ -173,26 +213,36 @@ public async Task<IEnumerable<object>> GetAllDoctorsWithCommunicationsAsync()
         d.Id,
         d.Name,
         d.Email,
-        d.ProfilePicture,
-        d.CV,
-        Patients = d.Patients?.Select(p => new
+        profilePicture = d.ProfilePicture,
+        cv = d.CvFileUrl,
+        phoneNumber = d.PhoneNumber,
+        address = d.Address,
+        communicationInfo = d.CommunicationInfo,
+        cvText = d.CvText,
+        dateOfBirth = d.DateOfBirth,
+        age = d.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - d.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+        averageRating = d.AverageRating,
+        createdAt = d.CreatedAt,
+        patients = d.Patients?.Select(p => new
         {
             p.Id,
             p.Name,
             p.Email,
-            p.Age,
-            p.ProfilePicture
+            dateOfBirth = p.DateOfBirth,
+            phoneNumber = p.PhoneNumber,
+            age = p.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - p.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+            profilePicture = p.ProfilePicture
         }) ?? Enumerable.Empty<object>(),
-        WeeklyReports = d.WeeklyReports?.Select(r => new
+        weeklyReports = d.WeeklyReports?.Select(r => new
         {
             r.Id,
-            r.PatientId,
-            PatientName = r.Patient?.Name,
-            r.StartDate,
-            r.EndDate,
-            r.TotalHours,
-            r.DoctorNotes,
-            r.AiSummary
+            patientId = r.PatientId,
+            patientName = r.Patient?.Name,
+            startDate = r.StartDate,
+            endDate = r.EndDate,
+            totalHours = r.TotalHours,
+            doctorNotes = r.DoctorNotes,
+            aiSummary = r.AiSummary
         }) ?? Enumerable.Empty<object>()
     });
 }
@@ -209,26 +259,36 @@ public async Task<object> GetDoctorWithCommunicationsAsync(int doctorId)
         doctor.Id,
         doctor.Name,
         doctor.Email,
-        doctor.ProfilePicture,
-        doctor.CV,
-        Patients = doctor.Patients?.Select(p => new
+        profilePicture = doctor.ProfilePicture,
+        cv = doctor.CvFileUrl,
+        phoneNumber = doctor.PhoneNumber,
+        address = doctor.Address,
+        communicationInfo = doctor.CommunicationInfo,
+        cvText = doctor.CvText,
+        dateOfBirth = doctor.DateOfBirth,
+        age = doctor.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - doctor.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+        averageRating = doctor.AverageRating,
+        createdAt = doctor.CreatedAt,
+        patients = doctor.Patients?.Select(p => new
         {
             p.Id,
             p.Name,
             p.Email,
-            p.Age,
-            p.ProfilePicture
+            dateOfBirth = p.DateOfBirth,
+            phoneNumber = p.PhoneNumber,
+            age = p.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - p.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+            profilePicture = p.ProfilePicture
         }) ?? Enumerable.Empty<object>(),
-        WeeklyReports = doctor.WeeklyReports?.Select(r => new
+        weeklyReports = doctor.WeeklyReports?.Select(r => new
         {
             r.Id,
-            r.PatientId,
-            PatientName = r.Patient?.Name,
-            r.StartDate,
-            r.EndDate,
-            r.TotalHours,
-            r.DoctorNotes,
-            r.AiSummary
+            patientId = r.PatientId,
+            patientName = r.Patient?.Name,
+            startDate = r.StartDate,
+            endDate = r.EndDate,
+            totalHours = r.TotalHours,
+            doctorNotes = r.DoctorNotes,
+            aiSummary = r.AiSummary
         }) ?? Enumerable.Empty<object>()
     };
 }

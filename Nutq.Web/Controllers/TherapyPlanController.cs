@@ -51,29 +51,33 @@ public async Task<IActionResult> AddExercise(int planId, [FromBody] AddPlanExerc
 {
     try
     {
-        var planExercise = await _planService.AddExerciseToPlanAsync(planId, command);
+        var planExercises = await _planService.AddExerciseToPlanAsync(planId, command);
 
-        var exercise = planExercise.Exercise; 
-
-        var dto = new PlanExerciseDto
+        var dtos = planExercises.Select(planExercise =>
         {
-            Id = planExercise.Id,
-            TherapyPlanId = planExercise.TherapyPlanId,
-            ExerciseId = planExercise.ExerciseId,
-            DurationMinutes = planExercise.DurationMinutes,
-            Repetition = planExercise.Repetition,
-            AiConstraints = planExercise.AiConstraints,
-            Exercise = new ExerciseDto
+            var exercise = planExercise.Exercise;
+            return new PlanExerciseDto
             {
-                Id = exercise.Id,
-                Name = exercise.Name,
-                Description = exercise.Description,
-                Category = exercise.Category,
-                Difficulty = exercise.Difficulty
-            }
-        };
+                Id = planExercise.Id,
+                TherapyPlanId = planExercise.TherapyPlanId,
+                ExerciseId = planExercise.ExerciseId,
+                DurationMinutes = planExercise.DurationMinutes,
+                Repetition = planExercise.Repetition,
+                AiConstraints = planExercise.AiConstraints,
+                Exercise = exercise == null ? null : new ExerciseDto
+                {
+                    Id = exercise.Id,
+                    Name = exercise.Name,
+                    Description = exercise.Description,
+                    Category = exercise.Category,
+                    Difficulty = exercise.Difficulty,
+                    ImageUrl = exercise.ImageUrl,
+                    AssetUrl = exercise.AssetUrl
+                }
+            };
+        }).ToList();
 
-        return Ok(dto);
+        return Ok(dtos);
     }
     catch (Exception ex)
     {
