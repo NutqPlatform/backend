@@ -9,15 +9,18 @@ namespace Nutq.Core.Services
         private readonly IDoctorRepository _doctorRepo;
         private readonly IPatientRepository _patientRepo;
         private readonly IInvitationCodeRepository _inviteRepo;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
         public RegistrationService(
             IDoctorRepository doctorRepo,
             IPatientRepository patientRepo,
-            IInvitationCodeRepository inviteRepo)
+            IInvitationCodeRepository inviteRepo,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _doctorRepo = doctorRepo;
             _patientRepo = patientRepo;
             _inviteRepo = inviteRepo;
+            _relationshipRepo = relationshipRepo;
         }
 
         public async Task<bool> RegisterDoctorAsync(DoctorRegisterCommand command)
@@ -57,13 +60,23 @@ namespace Nutq.Core.Services
         Name = command.Name,
         Email = command.Email,
         Password = command.Password,
-        DateOfBirth = command.DateOfBirth,
+        DateOfBirth = command.DateOfBirth.HasValue
+            ? DateTime.SpecifyKind(command.DateOfBirth.Value, DateTimeKind.Utc)
+            : null,
             DiagnosisText = "",
             PhoneNumber = command.PhoneNumber ?? string.Empty,
             CreatedAt = DateTime.UtcNow
     };
 
     await _patientRepo.AddAsync(patient);
+
+    await _relationshipRepo.AddAsync(new DoctorPatientRelationship
+    {
+        DoctorId = code.DoctorId.Value,
+        PatientId = patient.Id,
+        AssignedAt = DateTime.UtcNow
+    });
+
     await _inviteRepo.MarkUsedAsync(code.Id);
 
     return true;

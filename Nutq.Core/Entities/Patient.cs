@@ -9,7 +9,7 @@ namespace Nutq.Core.Entities
         public int Id { get; set; }
 
         [ForeignKey(nameof(Doctor))]
-        public int DoctorId { get; set; }
+        public int? DoctorId { get; set; }
 
         [Required, MaxLength(100)]
         public string Name { get; set; } = null!;
@@ -36,7 +36,9 @@ namespace Nutq.Core.Entities
         public bool IsBlocked { get; set; } = false;
 
         // Navigation
-        public Doctor Doctor { get; set; } = null!;
+        public Doctor? Doctor { get; set; }
+        public ICollection<DoctorPatientRelationship>? DoctorRelationships { get; set; }
+        public ICollection<TransferRequest>? TransferRequests { get; set; }
         public ICollection<TherapyPlan>? TherapyPlans { get; set; }
         public ICollection<WeeklyReport>? WeeklyReports { get; set; }
         public ICollection<ExerciseProgress>? ExerciseProgressRecords { get; set; }

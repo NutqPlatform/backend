@@ -78,7 +78,7 @@ namespace Nutq.Web.Controllers
             {
                 var doctor = await _patientService.GetAttendingDoctorAsync(patientId);
                 if (doctor == null)
-                    return NotFound(new { success = false, error = "Doctor not found" });
+                    return Ok(new { hasDoctor = false });
                 return Ok(doctor);
             }
             catch (Exception ex)

@@ -50,6 +50,7 @@ namespace Nutq.Web.Controllers
                         PlanId = plan.Id,
                         PlanName = plan.Description ?? "Untitled Plan",
                         PlanStatus = plan.Status,
+                        IsArchived = plan.IsArchived,
                         ProgressPercentage = progressPercentage,
                         Exercises = exercisesDto
                     };

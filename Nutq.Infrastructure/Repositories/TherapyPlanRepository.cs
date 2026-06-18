@@ -51,6 +51,13 @@ namespace Nutq.Infrastructure.Repositories
                     .ThenInclude(pe => pe.Exercise)
                 .FirstOrDefaultAsync();
         }
+
+        public async Task<IEnumerable<TherapyPlan>> GetByPatientIdAsync(int patientId)
+        {
+            return await _context.TherapyPlans
+                .Where(tp => tp.PatientId == patientId)
+                .ToListAsync();
+        }
     }
        
 }

@@ -44,5 +44,8 @@ namespace Nutq.Core.Entities
         public ICollection<InvitationCode>? InvitationCodes { get; set; }
         public ICollection<WeeklyReport>? WeeklyReports { get; set; }
         public ICollection<DoctorReview>? Reviews { get; set; }
+        public ICollection<DoctorPatientRelationship>? PatientRelationships { get; set; }
+        public ICollection<TransferRequest>? IncomingTransferRequests { get; set; }
+        public ICollection<TransferRequest>? OutgoingTransferRequests { get; set; }
     }
 }

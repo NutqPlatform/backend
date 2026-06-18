@@ -12,12 +12,14 @@ namespace Nutq.Core.Services
         private readonly IInvitationCodeRepository _codeRepo;
         private readonly IDoctorRepository _doctorRepo;
         private readonly IPatientRepository _patientRepo;
-        public DoctorService(IInvitationCodeRepository codeRepo, IDoctorRepository doctorRepo ,IPatientRepository patientRepo)
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
+
+        public DoctorService(IInvitationCodeRepository codeRepo, IDoctorRepository doctorRepo, IPatientRepository patientRepo, IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _codeRepo = codeRepo;
             _doctorRepo = doctorRepo;
             _patientRepo = patientRepo;
-            
+            _relationshipRepo = relationshipRepo;
         }
 
         public async Task<string> GeneratePatientCodeAsync(int doctorId)
@@ -96,9 +98,31 @@ public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
     var patient = await _patientRepo.GetByIdAsync(patientId);
     if (patient == null)
         throw new Exception($"Patient with ID {patientId} not found");
-    
-    if (patient.DoctorId != doctorId)
-        throw new Exception($"Patient with ID {patientId} does not belong to doctor {doctorId}");
+
+    var isCurrent = patient.DoctorId == doctorId;
+    if (!isCurrent)
+    {
+        var ended = (await _relationshipRepo.GetFormerByDoctorIdAsync(doctorId))
+            .FirstOrDefault(r => r.PatientId == patientId);
+        if (ended == null)
+            throw new Exception($"Patient with ID {patientId} does not belong to doctor {doctorId}");
+
+        return new
+        {
+            patient.Id,
+            patient.Name,
+            patient.Email,
+            dateOfBirth = patient.DateOfBirth,
+            phoneNumber = patient.PhoneNumber,
+            age = patient.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - patient.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+            diagnosis = ended.DiagnosisTextSnapshot,
+            diagnosisFileUrl = ended.DiagnosisFileUrlSnapshot,
+            profilePicture = patient.ProfilePicture,
+            createdAt = patient.CreatedAt,
+            isFormer = true,
+            leftAt = ended.EndedAt
+        };
+    }
 
     return new
     {
@@ -107,11 +131,12 @@ public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
         patient.Email,
         dateOfBirth = patient.DateOfBirth,
         phoneNumber = patient.PhoneNumber,
-        age = patient.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - patient.DateOfBirth.Value).TotalDays / 365.2425) : (int?)null,
+        age = patient.DateOfBirth.HasValue ? (int?)((DateTime.UtcNow - patient.DateOfBirth.Value).TotalDays / 365.25) : (int?)null,
         diagnosis = patient.DiagnosisText,
         diagnosisFileUrl = patient.DiagnosisFileUrl,
         profilePicture = patient.ProfilePicture,
-        createdAt = patient.CreatedAt
+        createdAt = patient.CreatedAt,
+        isFormer = false
     };
 }
 
@@ -122,7 +147,7 @@ public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
         throw new Exception("Doctor not found");
 
     var patient = await _patientRepo.GetByIdAsync(patientId);
-    if (patient == null || patient.DoctorId != doctorId)
+    if (patient == null || !patient.DoctorId.HasValue || patient.DoctorId != doctorId)
         throw new Exception("Patient not found or does not belong to this doctor");
 
             patient.DiagnosisText = diagnosis;

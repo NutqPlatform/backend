@@ -22,6 +22,8 @@ namespace Nutq.Infrastructure.Data
         public DbSet<WeeklyReport> WeeklyReports { get; set; } = null!;
         public DbSet<ExerciseProgress> ExerciseProgresses { get; set; } = null!;
         public DbSet<DoctorReview> DoctorReviews { get; set; } = null!;
+        public DbSet<DoctorPatientRelationship> DoctorPatientRelationships { get; set; } = null!;
+        public DbSet<TransferRequest> TransferRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -32,7 +34,37 @@ namespace Nutq.Infrastructure.Data
                 .HasMany(d => d.Patients)
                 .WithOne(p => p.Doctor)
                 .HasForeignKey(p => p.DoctorId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<DoctorPatientRelationship>()
+                .HasOne(r => r.Doctor)
+                .WithMany(d => d.PatientRelationships)
+                .HasForeignKey(r => r.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DoctorPatientRelationship>()
+                .HasOne(r => r.Patient)
+                .WithMany(p => p.DoctorRelationships)
+                .HasForeignKey(r => r.PatientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TransferRequest>()
+                .HasOne(t => t.Patient)
+                .WithMany(p => p.TransferRequests)
+                .HasForeignKey(t => t.PatientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TransferRequest>()
+                .HasOne(t => t.FromDoctor)
+                .WithMany(d => d.OutgoingTransferRequests)
+                .HasForeignKey(t => t.FromDoctorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<TransferRequest>()
+                .HasOne(t => t.ToDoctor)
+                .WithMany(d => d.IncomingTransferRequests)
+                .HasForeignKey(t => t.ToDoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Doctor>()
                 .HasMany(d => d.TherapyPlans)

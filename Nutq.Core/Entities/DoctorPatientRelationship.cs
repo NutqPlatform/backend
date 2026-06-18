@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Nutq.Core.Entities
 {
-    public class TherapyPlan
+    public class DoctorPatientRelationship
     {
         [Key]
         public int Id { get; set; }
@@ -14,21 +14,15 @@ namespace Nutq.Core.Entities
         [ForeignKey(nameof(Patient))]
         public int PatientId { get; set; }
 
-        public string? Description { get; set; }
+        public DateTime AssignedAt { get; set; }
 
-        [MaxLength(50)]
-        public string? Status { get; set; }
+        public DateTime? EndedAt { get; set; }
 
-        [Required]
-        public DateTime StartDate { get; set; }
+        public string? DiagnosisTextSnapshot { get; set; }
 
-        public DateTime? EndDate { get; set; }
+        public string? DiagnosisFileUrlSnapshot { get; set; }
 
-        public bool IsArchived { get; set; } = false;
-
-        // Navigation
         public Doctor Doctor { get; set; } = null!;
         public Patient Patient { get; set; } = null!;
-        public ICollection<PlanExercise>? PlanExercises { get; set; }
     }
 }

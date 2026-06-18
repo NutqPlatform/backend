@@ -148,6 +148,27 @@ public async Task<IActionResult> UpdateStatus(int planId, [FromBody] UpdatePlanS
     }
 }
 
+[HttpPut("plan/{planId}")]
+public async Task<IActionResult> UpdatePlan(int planId, [FromBody] UpdateTherapyPlanCommand command)
+{
+    try
+    {
+        var plan = await _planService.UpdatePlanAsync(planId, command);
+        return Ok(new TherapyPlanDto
+        {
+            Id = plan.Id,
+            Description = plan.Description,
+            Status = plan.Status,
+            StartDate = plan.StartDate,
+            EndDate = plan.EndDate
+        });
+    }
+    catch (Exception ex)
+    {
+        return BadRequest(new { error = ex.Message });
+    }
+}
+
 [HttpGet("doctor/{doctorId}/plans/active")]
 public async Task<IActionResult> GetActivePlans(int doctorId)
 {

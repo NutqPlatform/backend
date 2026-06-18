@@ -8,15 +8,18 @@ namespace Nutq.Core.Services
         private readonly IDoctorReviewRepository _reviewRepository;
         private readonly IDoctorRepository _doctorRepository;
         private readonly IPatientRepository _patientRepository;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepository;
 
         public DoctorReviewService(
             IDoctorReviewRepository reviewRepository,
             IDoctorRepository doctorRepository,
-            IPatientRepository patientRepository)
+            IPatientRepository patientRepository,
+            IDoctorPatientRelationshipRepository relationshipRepository)
         {
             _reviewRepository = reviewRepository;
             _doctorRepository = doctorRepository;
             _patientRepository = patientRepository;
+            _relationshipRepository = relationshipRepository;
         }
 
         private async Task EnsurePatientCanReviewDoctorAsync(int doctorId, int patientId)
@@ -25,8 +28,12 @@ namespace Nutq.Core.Services
             if (patient == null)
                 throw new ArgumentException("Patient not found");
 
-            if (patient.DoctorId != doctorId)
-                throw new ArgumentException("You can only review your assigned doctor");
+            if (patient.DoctorId == doctorId)
+                return;
+
+            var hadRelationship = await _relationshipRepository.HasRelationshipAsync(doctorId, patientId);
+            if (!hadRelationship)
+                throw new ArgumentException("You can only review a doctor you have been assigned to");
         }
 
         public async Task<DoctorReview> CreateReviewAsync(int doctorId, int patientId, int rating, string? comment)

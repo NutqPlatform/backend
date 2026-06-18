@@ -37,12 +37,11 @@ namespace Nutq.Infrastructure.Repositories
 
             var now = DateTime.UtcNow;
             var updated = false;
-
             foreach (var plan in plans)
             {
-                if (plan.EndDate.HasValue && plan.EndDate.Value <= now && plan.Status != "Completed")
+                if (plan.EndDate.HasValue && plan.EndDate.Value <= now && plan.Status == "Active")
                 {
-                    plan.Status = "Completed";
+                    plan.Status = "Paused";
                     _context.TherapyPlans.Update(plan);
                     updated = true;
                 }

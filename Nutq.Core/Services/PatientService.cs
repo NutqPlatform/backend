@@ -11,12 +11,18 @@ namespace Nutq.Core.Services
         private readonly IPatientRepository _patientRepo;
         private readonly IDoctorRepository _doctorRepo;
         private readonly IWeeklyReportRepository _weeklyReportRepo;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
-        public PatientService(IPatientRepository patientRepo, IDoctorRepository doctorRepo, IWeeklyReportRepository weeklyReportRepo)
+        public PatientService(
+            IPatientRepository patientRepo,
+            IDoctorRepository doctorRepo,
+            IWeeklyReportRepository weeklyReportRepo,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _patientRepo = patientRepo;
             _doctorRepo = doctorRepo;
             _weeklyReportRepo = weeklyReportRepo;
+            _relationshipRepo = relationshipRepo;
         }
 
         public async Task<object> GetPatientProfileAsync(int patientId)
@@ -24,6 +30,8 @@ namespace Nutq.Core.Services
             var patient = await _patientRepo.GetByIdAsync(patientId);
             if (patient == null)
                 throw new Exception("Patient not found");
+
+            var lastEnded = await _relationshipRepo.GetLastEndedForPatientAsync(patientId);
 
             return new
             {
@@ -38,7 +46,9 @@ namespace Nutq.Core.Services
                 diagnosis = patient.DiagnosisText,
                 diagnosisFileUrl = patient.DiagnosisFileUrl,
                 profilePicture = patient.ProfilePicture,
-                doctorId = patient.DoctorId
+                doctorId = patient.DoctorId,
+                hasDoctor = patient.DoctorId.HasValue,
+                formerDoctorId = lastEnded?.DoctorId
             };
         }
 
@@ -79,7 +89,10 @@ namespace Nutq.Core.Services
             if (patient == null)
                 return null;
 
-            var doctor = await _doctorRepo.GetByIdAsync(patient.DoctorId);
+            if (!patient.DoctorId.HasValue)
+                return null;
+
+            var doctor = await _doctorRepo.GetByIdAsync(patient.DoctorId.Value);
             if (doctor == null)
                 return null;
 

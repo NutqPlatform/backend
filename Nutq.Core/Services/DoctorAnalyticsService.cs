@@ -9,23 +9,25 @@ namespace Nutq.Core.Services
         private readonly ITherapyPlanRepository _planRepo;
         private readonly IPlanExerciseRepository _planExerciseRepo;
         private readonly IExerciseProgressRepository _progressRepo;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
         public DoctorAnalyticsService(
             IDoctorRepository doctorRepo,
             ITherapyPlanRepository planRepo,
             IPlanExerciseRepository planExerciseRepo,
-            IExerciseProgressRepository progressRepo)
+            IExerciseProgressRepository progressRepo,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _doctorRepo = doctorRepo;
             _planRepo = planRepo;
             _planExerciseRepo = planExerciseRepo;
             _progressRepo = progressRepo;
+            _relationshipRepo = relationshipRepo;
         }
 
         public async Task<int> GetTotalPatientsAsync(int doctorId)
         {
-            var patients = await _doctorRepo.GetPatientsAsync(doctorId) ?? new List<Patient>();
-            return patients.Count;
+            return await _relationshipRepo.CountDistinctPatientsAsync(doctorId);
         }
 
         public async Task<int> GetTotalPlansAsync(int doctorId)

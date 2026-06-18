@@ -3,6 +3,7 @@ using Nutq.Core.Interfaces;
 using Nutq.Core.Commands;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Nutq.Core.Services
@@ -30,37 +31,43 @@ namespace Nutq.Core.Services
         }
 
         public async Task<TherapyPlan> CreatePlanAsync(int doctorId, int patientId, CreateTherapyPlanCommand command)
-{
-    if (command.Exercises == null || command.Exercises.Count == 0)
-        throw new Exception("A therapy plan must contain at least one exercise.");
+        {
+            if (command.Exercises == null || command.Exercises.Count == 0)
+                throw new Exception("A therapy plan must contain at least one exercise.");
 
-    var doctor = await _doctorRepo.GetByIdAsync(doctorId);
-    if (doctor == null) throw new Exception("Doctor not found");
+            var doctor = await _doctorRepo.GetByIdAsync(doctorId);
+            if (doctor == null) throw new Exception("Doctor not found");
 
-    var patient = await _patientRepo.GetByIdAsync(patientId);
-    if (patient == null) throw new Exception("Patient not found");
-    if (patient.DoctorId != doctorId)
-        throw new Exception("You cannot create a plan for a patient not assigned to you.");
+            var patient = await _patientRepo.GetByIdAsync(patientId);
+            if (patient == null) throw new Exception("Patient not found");
+            if (!patient.DoctorId.HasValue || patient.DoctorId != doctorId)
+                throw new Exception("You cannot create a plan for a patient not assigned to you.");
 
-    var plan = new TherapyPlan
-    {
-        DoctorId = doctorId,
-        PatientId = patientId,
-        Description = command.Description,
-        Status = command.Status,
-        StartDate = command.StartDate,
-        EndDate = command.EndDate
-    };
+            var endDate = command.EndDate ?? command.StartDate.AddDays(7);
+            if (endDate <= command.StartDate)
+                throw new Exception("End date must be after start date.");
 
-    await _planRepo.AddAsync(plan);
+            await PauseActivePlansForPatientAsync(patientId);
 
-    foreach (var exerciseCommand in command.Exercises)
-    {
-        await AddExerciseToPlanInternalAsync(plan.Id, exerciseCommand);
-    }
+            var plan = new TherapyPlan
+            {
+                DoctorId = doctorId,
+                PatientId = patientId,
+                Description = command.Description,
+                Status = "Active",
+                StartDate = command.StartDate,
+                EndDate = endDate
+            };
 
-    return plan;
-}
+            await _planRepo.AddAsync(plan);
+
+            foreach (var exerciseCommand in command.Exercises)
+            {
+                await AddExerciseToPlanInternalAsync(plan.Id, exerciseCommand);
+            }
+
+            return plan;
+        }
 
         public async Task<IEnumerable<PlanExercise>> AddExerciseToPlanAsync(int planId, AddPlanExerciseCommand command)
         {
@@ -140,8 +147,42 @@ namespace Nutq.Core.Services
             var plan = await _planRepo.GetByIdAsync(planId);
             if (plan == null) throw new Exception("Therapy plan not found");
 
+            if (status == "Active")
+            {
+                await PauseActivePlansForPatientAsync(plan.PatientId, planId);
+            }
+
             plan.Status = status;
             await _planRepo.UpdateAsync(plan);
+        }
+
+        public async Task<TherapyPlan> UpdatePlanAsync(int planId, UpdateTherapyPlanCommand command)
+        {
+            var plan = await _planRepo.GetByIdAsync(planId);
+            if (plan == null) throw new Exception("Therapy plan not found");
+
+            if (command.Description != null)
+                plan.Description = command.Description;
+
+            if (command.EndDate.HasValue)
+            {
+                if (command.EndDate.Value <= plan.StartDate)
+                    throw new Exception("End date must be after start date.");
+                plan.EndDate = command.EndDate.Value;
+            }
+
+            await _planRepo.UpdateAsync(plan);
+            return plan;
+        }
+
+        private async Task PauseActivePlansForPatientAsync(int patientId, int? exceptPlanId = null)
+        {
+            var patientPlans = await _planRepo.GetByPatientIdAsync(patientId);
+            foreach (var existingPlan in patientPlans.Where(p => !p.IsArchived && p.Status == "Active" && p.Id != exceptPlanId))
+            {
+                existingPlan.Status = "Paused";
+                await _planRepo.UpdateAsync(existingPlan);
+            }
         }
 
         
@@ -150,6 +191,7 @@ namespace Nutq.Core.Services
     var allPlans = await _planRepo.GetPlansByDoctorAsync(doctorId);
 
     return allPlans.Where(p =>
+        !p.IsArchived &&
         p.Status == "Active" &&
         (p.EndDate == null || p.EndDate > DateTime.UtcNow)
     );

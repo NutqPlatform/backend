@@ -6,6 +6,9 @@ using Nutq.Core.Services;
 using Microsoft.OpenApi.Models;
 
 
+// Allow Npgsql to accept DateTime with any Kind (not just UTC)
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add DbContext
@@ -26,6 +29,8 @@ builder.Services.AddScoped<IInvitationCodeRepository, InvitationCodeRepository>(
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
 builder.Services.AddScoped<ITherapyPlanRepository, TherapyPlanRepository>();
 builder.Services.AddScoped<IDoctorReviewRepository, DoctorReviewRepository>();
+builder.Services.AddScoped<IDoctorPatientRelationshipRepository, DoctorPatientRelationshipRepository>();
+builder.Services.AddScoped<ITransferRequestRepository, TransferRequestRepository>();
 
 builder.Services.AddScoped<IExerciseProgressRepository, ExerciseProgressRepository>();
 builder.Services.AddScoped<IExerciseProgressService, ExerciseProgressService>();
@@ -39,6 +44,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDoctorReviewService, DoctorReviewService>();
+builder.Services.AddScoped<ITransferService, TransferService>();
 
 builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
 builder.Services.AddScoped<IPatientService, PatientService>();

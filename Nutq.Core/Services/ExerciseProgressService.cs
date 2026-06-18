@@ -4,6 +4,7 @@ using Nutq.Core.Entities;
 using Nutq.Core.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Nutq.Core.Services
@@ -41,16 +42,21 @@ namespace Nutq.Core.Services
             var existing = await _progressRepo.GetByPatientAndPlanExerciseAsync(command.PatientId, command.PlanExerciseId);
             if (existing != null)
             {
-                // Update
                 existing.StartTime = command.StartTime;
                 existing.EndTime = command.EndTime;
                 existing.Score = command.Score;
                 existing.Completed = command.Completed;
                 await _progressRepo.UpdateAsync(existing);
+
+                if (command.Completed)
+                {
+                    var plan = await _therapyPlanRepo.GetByIdAsync(planExercise.TherapyPlanId);
+                    if (plan != null)
+                        await CheckAndCompletePlanIfAllExercisesDoneAsync(plan, command.PatientId);
+                }
             }
             else
             {
-                // Add new
                 var progress = new ExerciseProgress
                 {
                     PatientId = command.PatientId,
@@ -61,6 +67,13 @@ namespace Nutq.Core.Services
                     Completed = command.Completed
                 };
                 await _progressRepo.AddAsync(progress);
+
+                if (command.Completed)
+                {
+                    var plan = await _therapyPlanRepo.GetByIdAsync(planExercise.TherapyPlanId);
+                    if (plan != null)
+                        await CheckAndCompletePlanIfAllExercisesDoneAsync(plan, command.PatientId);
+                }
             }
         }
 
@@ -82,6 +95,8 @@ namespace Nutq.Core.Services
             var plan = await _therapyPlanRepo.GetByIdAsync(planExercise.TherapyPlanId);
             if (plan == null || plan.PatientId != patientId)
                 throw new Exception("Plan exercise does not belong to this patient");
+            if (plan.Status != "Active")
+                throw new Exception("Can only exercise on the active therapy plan");
 
             var existing = await _progressRepo.GetByPatientAndPlanExerciseAsync(patientId, planExerciseId);
             if (existing != null)
@@ -110,6 +125,8 @@ namespace Nutq.Core.Services
             var plan = await _therapyPlanRepo.GetByIdAsync(planExercise.TherapyPlanId);
             if (plan == null || plan.PatientId != patientId)
                 throw new Exception("Plan exercise does not belong to this patient");
+            if (plan.Status != "Active")
+                throw new Exception("Can only exercise on the active therapy plan");
 
             var existing = await _progressRepo.GetByPatientAndPlanExerciseAsync(patientId, planExerciseId);
             if (existing == null)
@@ -121,6 +138,8 @@ namespace Nutq.Core.Services
             if (sessionData != null)
                 existing.SessionData = sessionData;
             await _progressRepo.UpdateAsync(existing);
+
+            await CheckAndCompletePlanIfAllExercisesDoneAsync(plan, patientId);
         }
 
         public async Task CompleteRepetitionAsync(int patientId, int planExerciseId, string? sessionData = null)
@@ -145,6 +164,45 @@ namespace Nutq.Core.Services
                 existing.EndTime = DateTime.UtcNow;
                 existing.Completed = true;
                 await _progressRepo.UpdateAsync(existing);
+
+                var planExercise = await _planExerciseRepo.GetByIdAsync(planExerciseId);
+                if (planExercise != null)
+                {
+                    var plan = await _therapyPlanRepo.GetByIdAsync(planExercise.TherapyPlanId);
+                    if (plan != null)
+                        await CheckAndCompletePlanIfAllExercisesDoneAsync(plan, patientId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// If patient did all exercises in plan, plan is complete.
+        /// </summary>
+        private async Task CheckAndCompletePlanIfAllExercisesDoneAsync(TherapyPlan plan, int patientId)
+        {
+            if (plan.Status == "Completed")
+                return;
+
+            var planExercises = await _planExerciseRepo.GetByPlanIdsAsync(new List<int> { plan.Id });
+            var planExerciseIds = planExercises.Select(pe => pe.Id).ToList();
+            if (planExerciseIds.Count == 0)
+                return;
+
+            var allDone = true;
+            foreach (var peId in planExerciseIds)
+            {
+                var progress = await _progressRepo.GetByPatientAndPlanExerciseAsync(patientId, peId);
+                if (progress == null || !progress.Completed)
+                {
+                    allDone = false;
+                    break;
+                }
+            }
+
+            if (allDone)
+            {
+                plan.Status = "Completed";
+                await _therapyPlanRepo.UpdateAsync(plan);
             }
         }
     }
