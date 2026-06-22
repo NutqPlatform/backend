@@ -1,4 +1,4 @@
-using Nutq.Core.Entities;
+using Nutq.Core.Models;
 
 namespace Nutq.Core.Interfaces
 {
@@ -8,5 +8,6 @@ namespace Nutq.Core.Interfaces
         Task<int> GetTotalPlansAsync(int doctorId);
         Task<int> GetTotalExercisesAsync(int doctorId);
         Task<double> GetAverageCompletionRateAsync(int doctorId);
+        Task<PatientLongitudinalAnalytics?> GetPatientLongitudinalAnalyticsAsync(int doctorId, int patientId);
     }
 }

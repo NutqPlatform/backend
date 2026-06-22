@@ -13,10 +13,17 @@ namespace Nutq.Web.Controllers
     public class WeeklyReportController : ControllerBase
     {
         private readonly IWeeklyReportRepository _weeklyReportRepository;
+        private readonly IPatientRepository _patientRepository;
+        private readonly ITherapyPlanRepository _therapyPlanRepository;
 
-        public WeeklyReportController(IWeeklyReportRepository weeklyReportRepository)
+        public WeeklyReportController(
+            IWeeklyReportRepository weeklyReportRepository,
+            IPatientRepository patientRepository,
+            ITherapyPlanRepository therapyPlanRepository)
         {
             _weeklyReportRepository = weeklyReportRepository;
+            _patientRepository = patientRepository;
+            _therapyPlanRepository = therapyPlanRepository;
         }
 
         [HttpPost]
@@ -24,6 +31,10 @@ namespace Nutq.Web.Controllers
         {
             try
             {
+                var validationError = await ValidateDoctorCanManageReportAsync(dto.DoctorId, dto.PatientId, dto.TherapyPlanId);
+                if (validationError != null)
+                    return BadRequest(new { error = validationError });
+
                 // Check if report already exists for this plan
                 if (dto.TherapyPlanId.HasValue)
                 {
@@ -77,6 +88,13 @@ namespace Nutq.Web.Controllers
                 {
                     return NotFound(new { error = "Report not found" });
                 }
+
+                var validationError = await ValidateDoctorCanManageReportAsync(
+                    report.DoctorId,
+                    report.PatientId,
+                    report.TherapyPlanId);
+                if (validationError != null)
+                    return BadRequest(new { error = validationError });
 
                 report.DoctorNotes = dto.DoctorNotes;
                 report.TotalHours = dto.TotalHours;
@@ -147,6 +165,31 @@ namespace Nutq.Web.Controllers
             }).ToList();
 
             return Ok(list);
+        }
+
+        private async Task<string?> ValidateDoctorCanManageReportAsync(int doctorId, int patientId, int? therapyPlanId)
+        {
+            var patient = await _patientRepository.GetByIdAsync(patientId);
+            if (patient == null)
+                return "Patient not found";
+
+            if (patient.DoctorId != doctorId)
+                return "Patient is no longer assigned to you. Reports cannot be created or edited.";
+
+            if (therapyPlanId.HasValue)
+            {
+                var plan = await _therapyPlanRepository.GetByIdAsync(therapyPlanId.Value);
+                if (plan == null)
+                    return "Therapy plan not found";
+
+                if (plan.IsArchived)
+                    return "This plan is archived and reports cannot be modified.";
+
+                if (plan.DoctorId != doctorId || plan.PatientId != patientId)
+                    return "Therapy plan does not belong to this doctor and patient.";
+            }
+
+            return null;
         }
     }
 }

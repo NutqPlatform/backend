@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Nutq.Core.Interfaces;
 using Nutq.Web.DTOs;
+using Nutq.Web.DTOs.PatientAnalytics;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,19 +20,22 @@ namespace Nutq.Web.Controllers
         private readonly IVocabularyExerciseRepository _vocabExerciseRepo;
         private readonly IExerciseProgressService _exerciseProgressService;
         private readonly IPlanExerciseRepository _planExerciseRepo;
+        private readonly IPatientAnalyticsService _analyticsService;
 
         public PatientExerciseController(
             ITherapyPlanService therapyPlanService,
             IVocabularyRepository vocabularyRepo,
             IVocabularyExerciseRepository vocabExerciseRepo,
             IExerciseProgressService exerciseProgressService,
-            IPlanExerciseRepository planExerciseRepo)
+            IPlanExerciseRepository planExerciseRepo,
+            IPatientAnalyticsService analyticsService)
         {
             _therapyPlanService = therapyPlanService;
             _vocabularyRepo = vocabularyRepo;
             _vocabExerciseRepo = vocabExerciseRepo;
             _exerciseProgressService = exerciseProgressService;
             _planExerciseRepo = planExerciseRepo;
+            _analyticsService = analyticsService;
         }
 
         
@@ -202,5 +206,65 @@ namespace Nutq.Web.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Get persisted session analytics (TrainingSession + SpeechAttempts) for a completed exercise.
+        /// </summary>
+        [HttpGet("{patientId}/exercises/{planExerciseId}/session-analytics")]
+        public async Task<IActionResult> GetSessionAnalytics(int patientId, int planExerciseId)
+        {
+            try
+            {
+                var analytics = await _analyticsService.GetExerciseSessionAnalyticsAsync(patientId, planExerciseId);
+                if (analytics == null)
+                    return NotFound(new { error = "Session analytics not found. Complete the exercise first." });
+
+                return Ok(MapSessionAnalytics(analytics));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        private static PatientExerciseSessionAnalyticsDto MapSessionAnalytics(PatientExerciseSessionAnalytics a) =>
+            new()
+            {
+                TrainingSessionId = a.TrainingSessionId,
+                ExerciseProgressId = a.ExerciseProgressId,
+                ExerciseName = a.ExerciseName,
+                StartTime = a.StartTime,
+                EndTime = a.EndTime,
+                TotalDurationSeconds = a.TotalDurationSeconds,
+                WordsCompleted = a.WordsCompleted,
+                FirstAttemptCorrectCount = a.FirstAttemptCorrectCount,
+                AccuracyPercent = a.AccuracyPercent,
+                FirstAttemptSuccessRate = a.FirstAttemptSuccessRate,
+                AverageSimilarityScore = a.AverageSimilarityScore,
+                StrengthAreas = a.StrengthAreas,
+                WeaknessAreas = a.WeaknessAreas,
+                Words = a.Words.Select(w => new WordSessionPerformanceDto
+                {
+                    VocabularyId = w.VocabularyId,
+                    ExpectedWord = w.ExpectedWord,
+                    WordEnglish = w.WordEnglish,
+                    WordArabic = w.WordArabic,
+                    TotalAttempts = w.TotalAttempts,
+                    FirstAttemptCorrect = w.FirstAttemptCorrect,
+                    BestSimilarityScore = w.BestSimilarityScore,
+                    AverageSimilarityScore = w.AverageSimilarityScore,
+                    Succeeded = w.Succeeded,
+                    Attempts = w.Attempts.Select(at => new SpeechAttemptSummaryDto
+                    {
+                        AttemptNumber = at.AttemptNumber,
+                        ExpectedWord = at.ExpectedWord,
+                        RecognizedWord = at.RecognizedWord,
+                        SimilarityScore = at.SimilarityScore,
+                        IsCorrect = at.IsCorrect,
+                        AudioDurationSeconds = at.AudioDurationSeconds,
+                        AttemptedAt = at.AttemptedAt
+                    })
+                })
+            };
     }
 }

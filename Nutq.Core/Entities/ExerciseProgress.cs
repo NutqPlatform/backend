@@ -31,8 +31,8 @@ namespace Nutq.Core.Entities
         public int TotalRepetitions { get; set; } = 1;
 
         /// <summary>
-        /// JSON blob with per-word analytics for AI analysis:
-        /// { exerciseType, totalDurationSeconds, repetitions: [{ rep, words: [{ wordId, wordEnglish, attempts, audioPlays, firstTryCorrect, timeSpentSeconds }] }] }
+        /// JSON blob with per-word analytics:
+        /// { exerciseType, repetitions: [{ words: [{ wordId, attempts, firstTryCorrect, speechAttempts: [{ expectedWord, recognizedWord, similarityScore, ... }] }] }] }
         /// </summary>
         public string? SessionData { get; set; }
 

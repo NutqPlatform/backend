@@ -24,6 +24,12 @@ namespace Nutq.Infrastructure.Data
         public DbSet<DoctorReview> DoctorReviews { get; set; } = null!;
         public DbSet<DoctorPatientRelationship> DoctorPatientRelationships { get; set; } = null!;
         public DbSet<TransferRequest> TransferRequests { get; set; } = null!;
+        public DbSet<TrainingSession> TrainingSessions { get; set; } = null!;
+        public DbSet<SpeechAttempt> SpeechAttempts { get; set; } = null!;
+        public DbSet<ProgressSnapshot> ProgressSnapshots { get; set; } = null!;
+        public DbSet<CategoryPerformanceSnapshot> CategoryPerformanceSnapshots { get; set; } = null!;
+        public DbSet<SessionClinicalReport> SessionClinicalReports { get; set; } = null!;
+        public DbSet<PronunciationPattern> PronunciationPatterns { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -152,6 +158,64 @@ namespace Nutq.Infrastructure.Data
             modelBuilder.Entity<DoctorReview>()
                 .HasIndex(dr => new { dr.DoctorId, dr.PatientId })
                 .IsUnique();
+
+            modelBuilder.Entity<TrainingSession>()
+                .HasOne(ts => ts.ExerciseProgress)
+                .WithOne()
+                .HasForeignKey<TrainingSession>(ts => ts.ExerciseProgressId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TrainingSession>()
+                .HasIndex(ts => ts.ExerciseProgressId)
+                .IsUnique();
+
+            modelBuilder.Entity<ProgressSnapshot>()
+                .HasOne(ps => ps.TrainingSession)
+                .WithOne(ts => ts.ProgressSnapshot)
+                .HasForeignKey<ProgressSnapshot>(ps => ps.TrainingSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ProgressSnapshot>()
+                .HasIndex(ps => ps.TrainingSessionId)
+                .IsUnique();
+
+            modelBuilder.Entity<SessionClinicalReport>()
+                .HasOne(r => r.TrainingSession)
+                .WithOne(ts => ts.ClinicalReport)
+                .HasForeignKey<SessionClinicalReport>(r => r.TrainingSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SessionClinicalReport>()
+                .HasIndex(r => r.TrainingSessionId)
+                .IsUnique();
+
+            modelBuilder.Entity<CategoryPerformanceSnapshot>()
+                .HasOne(c => c.ProgressSnapshot)
+                .WithMany(ps => ps.CategoryPerformances)
+                .HasForeignKey(c => c.ProgressSnapshotId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SpeechAttempt>()
+                .HasOne(a => a.TrainingSession)
+                .WithMany(ts => ts.SpeechAttempts)
+                .HasForeignKey(a => a.TrainingSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PronunciationPattern>()
+                .HasIndex(p => new { p.PatientId, p.ExpectedPattern, p.RecognizedPattern, p.PatternType })
+                .IsUnique();
+
+            modelBuilder.Entity<SpeechAttempt>()
+                .HasIndex(a => new { a.PatientId, a.AttemptedAt });
+
+            modelBuilder.Entity<ProgressSnapshot>()
+                .HasIndex(p => new { p.PatientId, p.SnapshotDate });
+
+            modelBuilder.Entity<CategoryPerformanceSnapshot>()
+                .HasIndex(c => new { c.PatientId, c.Category });
+
+            modelBuilder.Entity<PronunciationPattern>()
+                .HasIndex(p => new { p.PatientId, p.IsActive });
         }
     }
 }

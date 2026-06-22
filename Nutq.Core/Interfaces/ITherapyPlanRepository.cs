@@ -8,6 +8,7 @@ namespace Nutq.Core.Interfaces
     {
         Task<IEnumerable<TherapyPlan>> GetByDoctorAndPatientAsync(int doctorId, int patientId);
         Task<List<TherapyPlan>> GetPlansByDoctorAsync(int doctorId);
+        Task<List<TherapyPlan>> GetOngoingPlansByDoctorAsync(int doctorId);
         Task<TherapyPlan?> GetPlanWithExercisesByIdAsync(int planId);
         Task<TherapyPlan?> GetPlanWithExercisesForPatientAsync(int planId, int patientId);
         Task<IEnumerable<TherapyPlan>> GetByPatientIdAsync(int patientId);

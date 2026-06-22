@@ -15,17 +15,20 @@ namespace Nutq.Core.Services
         private readonly IPatientRepository _patientRepo;
         private readonly IPlanExerciseRepository _planExerciseRepo;
         private readonly ITherapyPlanRepository _therapyPlanRepo;
+        private readonly IPatientAnalyticsIngestionService _analyticsIngestion;
 
         public ExerciseProgressService(
             IExerciseProgressRepository progressRepo,
             IPatientRepository patientRepo,
             IPlanExerciseRepository planExerciseRepo,
-            ITherapyPlanRepository therapyPlanRepo)
+            ITherapyPlanRepository therapyPlanRepo,
+            IPatientAnalyticsIngestionService analyticsIngestion)
         {
             _progressRepo = progressRepo;
             _patientRepo = patientRepo;
             _planExerciseRepo = planExerciseRepo;
             _therapyPlanRepo = therapyPlanRepo;
+            _analyticsIngestion = analyticsIngestion;
         }
 
         public async Task AddOrUpdateProgressAsync(ExerciseProgressCommand command)
@@ -138,6 +141,7 @@ namespace Nutq.Core.Services
             if (sessionData != null)
                 existing.SessionData = sessionData;
             await _progressRepo.UpdateAsync(existing);
+            await TryIngestAnalyticsAsync(existing);
 
             await CheckAndCompletePlanIfAllExercisesDoneAsync(plan, patientId);
         }
@@ -172,6 +176,20 @@ namespace Nutq.Core.Services
                     if (plan != null)
                         await CheckAndCompletePlanIfAllExercisesDoneAsync(plan, patientId);
                 }
+
+                await TryIngestAnalyticsAsync(existing);
+            }
+        }
+
+        private async Task TryIngestAnalyticsAsync(ExerciseProgress progress)
+        {
+            try
+            {
+                await _analyticsIngestion.IngestCompletedSessionAsync(progress);
+            }
+            catch
+            {
+                // Analytics ingestion must not block exercise completion
             }
         }
 

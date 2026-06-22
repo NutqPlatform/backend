@@ -50,6 +50,16 @@ builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
 builder.Services.AddScoped<IPatientService, PatientService>();
 
 builder.Services.AddScoped<IDoctorAnalyticsService, DoctorAnalyticsService>();
+
+builder.Services.AddScoped<ISpeechAttemptRepository, SpeechAttemptRepository>();
+builder.Services.AddScoped<ITrainingSessionRepository, TrainingSessionRepository>();
+builder.Services.AddScoped<IProgressSnapshotRepository, ProgressSnapshotRepository>();
+builder.Services.AddScoped<ICategoryPerformanceSnapshotRepository, CategoryPerformanceSnapshotRepository>();
+builder.Services.AddScoped<ISessionClinicalReportRepository, SessionClinicalReportRepository>();
+builder.Services.AddScoped<IPronunciationPatternRepository, PronunciationPatternRepository>();
+builder.Services.AddScoped<IPatientAnalyticsIngestionService, PatientAnalyticsIngestionService>();
+builder.Services.AddScoped<IPatientAnalyticsService, PatientAnalyticsService>();
+
 // Add CORS
 builder.Services.AddCors(options =>
 {

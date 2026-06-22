@@ -15,19 +15,22 @@ namespace Nutq.Core.Services
         private readonly IExerciseRepository _exerciseRepo;
         private readonly IDoctorRepository _doctorRepo;
         private readonly IPatientRepository _patientRepo;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
         public TherapyPlanService(
             ITherapyPlanRepository planRepo,
             IPlanExerciseRepository planExerciseRepo,
             IExerciseRepository exerciseRepo,
             IDoctorRepository doctorRepo,
-            IPatientRepository patientRepo)
+            IPatientRepository patientRepo,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _planRepo = planRepo;
             _planExerciseRepo = planExerciseRepo;
             _exerciseRepo = exerciseRepo;
             _doctorRepo = doctorRepo;
             _patientRepo = patientRepo;
+            _relationshipRepo = relationshipRepo;
         }
 
         public async Task<TherapyPlan> CreatePlanAsync(int doctorId, int patientId, CreateTherapyPlanCommand command)
@@ -74,6 +77,8 @@ namespace Nutq.Core.Services
             var plan = await _planRepo.GetByIdAsync(planId);
             if (plan == null) throw new Exception("Therapy plan not found");
 
+            await EnsureDoctorCanManagePlanAsync(plan);
+
             return await AddExerciseToPlanInternalAsync(planId, command);
         }
 
@@ -107,8 +112,20 @@ namespace Nutq.Core.Services
 
         public async Task<IEnumerable<TherapyPlan>> GetPlansForPatientAsync(int doctorId, int patientId)
         {
-            
-            return await _planRepo.GetByDoctorAndPatientAsync(doctorId, patientId);
+            var patient = await _patientRepo.GetByIdAsync(patientId);
+            if (patient == null)
+                throw new Exception("Patient not found");
+
+            var isCurrent = patient.DoctorId == doctorId;
+            if (!isCurrent && !await _relationshipRepo.HasRelationshipAsync(doctorId, patientId))
+                throw new Exception("Patient does not belong to this doctor");
+
+            var plans = await _planRepo.GetByDoctorAndPatientAsync(doctorId, patientId);
+
+            if (isCurrent)
+                return plans.Where(p => !p.IsArchived);
+
+            return plans.Where(p => p.IsArchived);
         }
 
         public async Task<TherapyPlan?> GetPlanByIdAsync(int planId)
@@ -125,6 +142,8 @@ namespace Nutq.Core.Services
         {
             var plan = await _planRepo.GetByIdAsync(planId);
             if (plan == null) throw new Exception("Therapy plan not found");
+
+            await EnsureDoctorCanManagePlanAsync(plan);
             
             if (plan.Status != "Active")
                 throw new Exception("Can only edit active plans");
@@ -147,6 +166,8 @@ namespace Nutq.Core.Services
             var plan = await _planRepo.GetByIdAsync(planId);
             if (plan == null) throw new Exception("Therapy plan not found");
 
+            await EnsureDoctorCanManagePlanAsync(plan);
+
             if (status == "Active")
             {
                 await PauseActivePlansForPatientAsync(plan.PatientId, planId);
@@ -160,6 +181,8 @@ namespace Nutq.Core.Services
         {
             var plan = await _planRepo.GetByIdAsync(planId);
             if (plan == null) throw new Exception("Therapy plan not found");
+
+            await EnsureDoctorCanManagePlanAsync(plan);
 
             if (command.Description != null)
                 plan.Description = command.Description;
@@ -185,21 +208,34 @@ namespace Nutq.Core.Services
             }
         }
 
-        
         public async Task<IEnumerable<TherapyPlan>> GetActivePlansForDoctorAsync(int doctorId)
 {
-    var allPlans = await _planRepo.GetPlansByDoctorAsync(doctorId);
+    var allPlans = await _planRepo.GetOngoingPlansByDoctorAsync(doctorId);
 
     return allPlans.Where(p =>
-        !p.IsArchived &&
         p.Status == "Active" &&
         (p.EndDate == null || p.EndDate > DateTime.UtcNow)
     );
 }
 
+        public async Task<IEnumerable<TherapyPlan>> GetOngoingPlansForDoctorAsync(int doctorId)
+        {
+            return await _planRepo.GetOngoingPlansByDoctorAsync(doctorId);
+        }
+
         public async Task<IEnumerable<TherapyPlan>> GetPlansByDoctorAsync(int doctorId)
         {
             return await _planRepo.GetPlansByDoctorAsync(doctorId);
+        }
+
+        private async Task EnsureDoctorCanManagePlanAsync(TherapyPlan plan)
+        {
+            if (plan.IsArchived)
+                throw new Exception("This plan is archived and cannot be modified.");
+
+            var patient = await _patientRepo.GetByIdAsync(plan.PatientId);
+            if (patient == null || patient.DoctorId != plan.DoctorId)
+                throw new Exception("Patient is no longer assigned to you. Plans and reports are read-only.");
         }
 
     }

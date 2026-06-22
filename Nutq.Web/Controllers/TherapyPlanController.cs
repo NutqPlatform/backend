@@ -254,7 +254,7 @@ public async Task<IActionResult> GetOngoingPlans(int doctorId)
 {
     try
     {
-        var plans = await _planService.GetActivePlansForDoctorAsync(doctorId);
+        var plans = await _planService.GetOngoingPlansForDoctorAsync(doctorId);
 
         var dtos = new List<TherapyPlanDto>();
         foreach (var plan in plans)
