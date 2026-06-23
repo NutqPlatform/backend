@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Nutq.Core.Entities;
 using Nutq.Core.Interfaces;
 using Nutq.Core.Models;
@@ -18,6 +23,9 @@ namespace Nutq.Core.Services
         private readonly ISpeechAttemptRepository _attemptRepo;
         private readonly ISessionClinicalReportRepository _reportRepo;
         private readonly IProgressSnapshotRepository _snapshotRepo;
+        
+        private readonly IEnumerable<IClinicalInsightGenerator> _generators;
+        private readonly IOptions<PlanAnalyticsOptions> _options;
 
         public DoctorAnalyticsService(
             IDoctorRepository doctorRepo,
@@ -30,7 +38,9 @@ namespace Nutq.Core.Services
             ICategoryPerformanceSnapshotRepository categoryRepo,
             ISpeechAttemptRepository attemptRepo,
             ISessionClinicalReportRepository reportRepo,
-            IProgressSnapshotRepository snapshotRepo)
+            IProgressSnapshotRepository snapshotRepo,
+            IEnumerable<IClinicalInsightGenerator> generators,
+            IOptions<PlanAnalyticsOptions> options)
         {
             _doctorRepo = doctorRepo;
             _planRepo = planRepo;
@@ -43,6 +53,8 @@ namespace Nutq.Core.Services
             _attemptRepo = attemptRepo;
             _reportRepo = reportRepo;
             _snapshotRepo = snapshotRepo;
+            _generators = generators;
+            _options = options;
         }
 
         public async Task<int> GetTotalPatientsAsync(int doctorId)
@@ -173,8 +185,14 @@ namespace Nutq.Core.Services
             var progressComparison = await BuildProgressComparisonAsync(
                 plan, sessions, currentAccuracy, currentSimilarity, currentFirstAttempt);
 
-            // 6. Delegate computation to the engine
-            var analytics = PlanAnalyticsEngine.Compute(plan, sessions, attempts, reports, progressComparison);
+            // 6. Resolve active clinical insights generator from options
+            var activeGenName = _options.Value.ActiveGenerator;
+            var generator = _generators.FirstOrDefault(g => g.GetType().Name.StartsWith(activeGenName, StringComparison.OrdinalIgnoreCase))
+                            ?? _generators.FirstOrDefault(g => g is RuleBasedClinicalInsightGenerator)
+                            ?? _generators.First();
+
+            // 7. Delegate computation to the engine
+            var analytics = PlanAnalyticsEngine.Compute(plan, sessions, attempts, reports, progressComparison, _options.Value, generator);
             return analytics;
         }
 
@@ -195,6 +213,7 @@ namespace Nutq.Core.Services
         {
             var patientId = plan.PatientId;
             var now = DateTime.UtcNow;
+            var opt = _options.Value;
 
             // vs. last session in this plan (second-to-last)
             PlanPeriodComparison vsPrevSession;
@@ -208,11 +227,12 @@ namespace Nutq.Core.Services
                     currentFirstAttempt,
                     prevSession.AccuracyPercent,
                     prevSession.AverageSimilarityScore,
-                    null);
+                    null,
+                    opt);
             }
             else
             {
-                vsPrevSession = new PlanPeriodComparison("Previous Session", null, null, null, false);
+                vsPrevSession = new PlanPeriodComparison("Previous Session", null, null, null, false, "Stable");
             }
 
             // vs. previous plan for same patient
@@ -239,16 +259,17 @@ namespace Nutq.Core.Services
                         currentFirstAttempt,
                         prevPlanSessions.Average(s => s.AccuracyPercent),
                         prevPlanSessions.Average(s => s.AverageSimilarityScore),
-                        null);
+                        null,
+                        opt);
                 }
                 else
                 {
-                    vsPrevPlan = new PlanPeriodComparison("Previous Plan", null, null, null, false);
+                    vsPrevPlan = new PlanPeriodComparison("Previous Plan", null, null, null, false, "Stable");
                 }
             }
             else
             {
-                vsPrevPlan = new PlanPeriodComparison("Previous Plan", null, null, null, false);
+                vsPrevPlan = new PlanPeriodComparison("Previous Plan", null, null, null, false, "Stable");
             }
 
             // vs. last 7 days
@@ -257,8 +278,8 @@ namespace Nutq.Core.Services
             var refSessions7 = allRecentSessions7.Where(s => !planSessions.Any(ps => ps.Id == s.Id)).ToList();
             var vs7Days = refSessions7.Any()
                 ? PlanAnalyticsEngine.BuildPeriodComparison("Last 7 Days", currentAccuracy, currentSimilarity, currentFirstAttempt,
-                    refSessions7.Average(s => s.AccuracyPercent), refSessions7.Average(s => s.AverageSimilarityScore), null)
-                : new PlanPeriodComparison("Last 7 Days", null, null, null, false);
+                    refSessions7.Average(s => s.AccuracyPercent), refSessions7.Average(s => s.AverageSimilarityScore), null, opt)
+                : new PlanPeriodComparison("Last 7 Days", null, null, null, false, "Stable");
 
             // vs. last 30 days
             var thirtyDaysAgo = now.AddDays(-30);
@@ -266,8 +287,8 @@ namespace Nutq.Core.Services
             var refSessions30 = allRecentSessions30.Where(s => !planSessions.Any(ps => ps.Id == s.Id)).ToList();
             var vs30Days = refSessions30.Any()
                 ? PlanAnalyticsEngine.BuildPeriodComparison("Last 30 Days", currentAccuracy, currentSimilarity, currentFirstAttempt,
-                    refSessions30.Average(s => s.AccuracyPercent), refSessions30.Average(s => s.AverageSimilarityScore), null)
-                : new PlanPeriodComparison("Last 30 Days", null, null, null, false);
+                    refSessions30.Average(s => s.AccuracyPercent), refSessions30.Average(s => s.AverageSimilarityScore), null, opt)
+                : new PlanPeriodComparison("Last 30 Days", null, null, null, false, "Stable");
 
             return new PlanProgressComparison(vsPrevSession, vsPrevPlan, vs7Days, vs30Days);
         }

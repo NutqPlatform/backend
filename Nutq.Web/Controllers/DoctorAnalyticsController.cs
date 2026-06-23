@@ -3,6 +3,8 @@ using Nutq.Core.Interfaces;
 using Nutq.Core.Models;
 using Nutq.Web.DTOs;
 using Nutq.Web.DTOs.PlanAnalytics;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Nutq.Web.Controllers
@@ -12,10 +14,12 @@ namespace Nutq.Web.Controllers
     public class DoctorAnalyticsController : ControllerBase
     {
         private readonly IDoctorAnalyticsService _service;
+        private readonly ITherapyPlanRepository _planRepo;
 
-        public DoctorAnalyticsController(IDoctorAnalyticsService service)
+        public DoctorAnalyticsController(IDoctorAnalyticsService service, ITherapyPlanRepository planRepo)
         {
             _service = service;
+            _planRepo = planRepo;
         }
 
         [HttpGet("{doctorId}")]
@@ -64,6 +68,53 @@ namespace Nutq.Web.Controllers
             return Ok(MapPlanAnalytics(analytics));
         }
 
+        [HttpGet("/api/doctors/{doctorId}/plans/{planId}/analytics/pdf-model")]
+        public async Task<IActionResult> GetPlanAnalyticsPdfModel(int doctorId, int planId)
+        {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
+            var plan = await _planRepo.GetPlanWithExercisesByIdAsync(planId);
+            if (plan == null || plan.DoctorId != doctorId)
+                return NotFound(new { error = "Plan not found." });
+
+            var analytics = await _service.GetTherapyPlanAnalyticsAsync(doctorId, planId);
+            if (analytics == null)
+                return NotFound(new { error = "Analytics not found." });
+
+            int? age = null;
+            if (plan.Patient?.DateOfBirth != null)
+            {
+                age = DateTime.Today.Year - plan.Patient.DateOfBirth.Value.Year;
+                if (plan.Patient.DateOfBirth.Value.Date > DateTime.Today.AddYears(-age.Value)) age--;
+            }
+
+            var pdfModel = new TherapyPlanReportModel
+            {
+                ReportId = new Random().Next(10000, 99999),
+                GeneratedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+                DoctorName = plan.Doctor?.Name ?? $"Doctor #{doctorId}",
+                PatientName = plan.Patient?.Name ?? $"Patient #{plan.PatientId}",
+                PatientAge = age?.ToString() ?? "N/A",
+                Diagnosis = plan.Patient?.DiagnosisText ?? "N/A",
+                PlanId = planId,
+                PlanDescription = plan.Description ?? "Untitled Plan",
+                PlanStatus = plan.Status ?? "Unknown",
+                StartDate = plan.StartDate.ToString("yyyy-MM-dd"),
+                EndDate = plan.EndDate?.ToString("yyyy-MM-dd") ?? "N/A",
+                Summary = MapSummaryDto(analytics.Summary),
+                Words = analytics.Words.Select(MapWordPerformance),
+                Categories = analytics.Categories.Select(MapCategoryPerformance),
+                ProgressComparison = MapProgressComparisonDto(analytics.ProgressComparison),
+                ClinicalInsights = MapClinicalInsightsDto(analytics.ClinicalInsights),
+                RecurringDifficulties = analytics.RecurringDifficulties.Select(MapRecurringDifficulty),
+                SuggestedNextContent = MapSuggestedNextContent(analytics.SuggestedNextContent)
+            };
+
+            return Ok(pdfModel);
+        }
+
         // ─── Mapping helpers ─────────────────────────────────────────────────────
 
         private static PatientLongitudinalAnalyticsDto MapLongitudinalAnalytics(PatientLongitudinalAnalytics analytics) =>
@@ -106,19 +157,7 @@ namespace Nutq.Web.Controllers
                 PlanStatus = a.PlanStatus,
                 StartDate = a.StartDate,
                 EndDate = a.EndDate,
-                Summary = new TherapyPlanSummaryDto
-                {
-                    TotalSessionDurationSeconds = a.Summary.TotalSessionDurationSeconds,
-                    TotalWordsPracticed = a.Summary.TotalWordsPracticed,
-                    TotalSpeechAttempts = a.Summary.TotalSpeechAttempts,
-                    WordSuccessRate = a.Summary.WordSuccessRate,
-                    AttemptAccuracyRate = a.Summary.AttemptAccuracyRate,
-                    FirstAttemptSuccessRate = a.Summary.FirstAttemptSuccessRate,
-                    AveragePronunciationSimilarity = a.Summary.AveragePronunciationSimilarity,
-                    TotalFailedWords = a.Summary.TotalFailedWords,
-                    TotalCompletedWords = a.Summary.TotalCompletedWords,
-                    TotalSessions = a.Summary.TotalSessions
-                },
+                Summary = MapSummaryDto(a.Summary),
                 Words = a.Words.Select(MapWordPerformance),
                 Categories = a.Categories.Select(MapCategoryPerformance),
                 Strengths = new PlanStrengthAnalysisDto
@@ -136,23 +175,81 @@ namespace Nutq.Web.Controllers
                     LowSimilarityWords = a.Weaknesses.LowSimilarityWords.Select(MapWordPerformance),
                     RecurringDifficulties = a.Weaknesses.RecurringDifficulties
                 },
-                ProgressComparison = new PlanProgressComparisonDto
-                {
-                    VsPreviousSession = MapPeriodComparison(a.ProgressComparison.VsPreviousSession),
-                    VsPreviousPlan = MapPeriodComparison(a.ProgressComparison.VsPreviousPlan),
-                    VsLast7Days = MapPeriodComparison(a.ProgressComparison.VsLast7Days),
-                    VsLast30Days = MapPeriodComparison(a.ProgressComparison.VsLast30Days)
-                },
-                ClinicalInsights = new PlanClinicalInsightsDto
-                {
-                    Strengths = a.ClinicalInsights.Strengths,
-                    Weaknesses = a.ClinicalInsights.Weaknesses,
-                    RecommendedFocusAreas = a.ClinicalInsights.RecommendedFocusAreas.Select(f =>
-                        new PlanFocusAreaItemDto { Area = f.Area, Rationale = f.Rationale, Priority = f.Priority }),
-                    SuggestedNextExercises = a.ClinicalInsights.SuggestedNextExercises,
-                    TherapyAttentionAreas = a.ClinicalInsights.TherapyAttentionAreas,
-                    AnalysisSource = a.ClinicalInsights.AnalysisSource
-                }
+                ProgressComparison = MapProgressComparisonDto(a.ProgressComparison),
+                ClinicalInsights = MapClinicalInsightsDto(a.ClinicalInsights),
+                RecurringDifficulties = a.RecurringDifficulties.Select(MapRecurringDifficulty),
+                SuggestedNextContent = MapSuggestedNextContent(a.SuggestedNextContent)
+            };
+
+        private static TherapyPlanSummaryDto MapSummaryDto(TherapyPlanSummary s) =>
+            new()
+            {
+                TotalSessionDurationSeconds = s.TotalSessionDurationSeconds,
+                TotalWordsPracticed = s.TotalWordsPracticed,
+                TotalSpeechAttempts = s.TotalSpeechAttempts,
+                WordSuccessRate = s.WordSuccessRate,
+                AttemptAccuracyRate = s.AttemptAccuracyRate,
+                FirstAttemptSuccessRate = s.FirstAttemptSuccessRate,
+                AveragePronunciationSimilarity = s.AveragePronunciationSimilarity,
+                TotalFailedWords = s.TotalFailedWords,
+                TotalCompletedWords = s.TotalCompletedWords,
+                TotalSessions = s.TotalSessions,
+                MasteredSimilarity = s.MasteredSimilarity,
+                PlanOutcomeScore = s.PlanOutcomeScore,
+                PlanOutcomeRating = s.PlanOutcomeRating
+            };
+
+        private static PlanPeriodComparisonDto MapPeriodComparison(PlanPeriodComparison p) =>
+            new()
+            {
+                Period = p.Period,
+                AccuracyDelta = p.AccuracyDelta,
+                SimilarityDelta = p.SimilarityDelta,
+                FirstAttemptDelta = p.FirstAttemptDelta,
+                HasData = p.HasData,
+                TrendRating = p.TrendRating
+            };
+
+        private static PlanProgressComparisonDto MapProgressComparisonDto(PlanProgressComparison pc) =>
+            new()
+            {
+                VsPreviousSession = MapPeriodComparison(pc.VsPreviousSession),
+                VsPreviousPlan = MapPeriodComparison(pc.VsPreviousPlan),
+                VsLast7Days = MapPeriodComparison(pc.VsLast7Days),
+                VsLast30Days = MapPeriodComparison(pc.VsLast30Days)
+            };
+
+        private static PlanClinicalInsightsDto MapClinicalInsightsDto(PlanClinicalInsights ci) =>
+            new()
+            {
+                ClinicalSummary = ci.ClinicalSummary,
+                StrengthAnalysis = ci.StrengthAnalysis,
+                WeaknessAnalysis = ci.WeaknessAnalysis,
+                TreatmentRecommendations = ci.TreatmentRecommendations,
+                SuggestedFocusAreas = ci.SuggestedFocusAreas.Select(f =>
+                    new PlanFocusAreaItemDto { Area = f.Area, Rationale = f.Rationale, Priority = f.Priority }),
+                TherapistNotes = ci.TherapistNotes,
+                AnalysisSource = ci.AnalysisSource
+            };
+
+        private static RecurringDifficultyItemDto MapRecurringDifficulty(RecurringDifficultyItem r) =>
+            new()
+            {
+                Word = r.Word,
+                Category = r.Category,
+                Frequency = r.Frequency,
+                SeverityScore = r.SeverityScore,
+                AttentionLevel = r.AttentionLevel
+            };
+
+        private static SuggestedNextTherapyContentDto MapSuggestedNextContent(SuggestedNextTherapyContent sc) =>
+            new()
+            {
+                CategoriesNeedingReinforcement = sc.CategoriesNeedingReinforcement,
+                VocabularyNeedingRepetition = sc.VocabularyNeedingRepetition,
+                DifficultyAdjustment = sc.DifficultyAdjustment,
+                RecommendedExerciseCount = sc.RecommendedExerciseCount,
+                Reasoning = sc.Reasoning
             };
 
         private static PlanWordPerformanceDto MapWordPerformance(PlanWordPerformance w) =>
@@ -186,16 +283,6 @@ namespace Nutq.Web.Controllers
                 AccuracyPercent = c.AccuracyPercent,
                 AverageSimilarity = c.AverageSimilarity,
                 AverageAttemptsPerWord = c.AverageAttemptsPerWord
-            };
-
-        private static PlanPeriodComparisonDto MapPeriodComparison(PlanPeriodComparison p) =>
-            new()
-            {
-                Period = p.Period,
-                AccuracyDelta = p.AccuracyDelta,
-                SimilarityDelta = p.SimilarityDelta,
-                FirstAttemptDelta = p.FirstAttemptDelta,
-                HasData = p.HasData
             };
     }
 }

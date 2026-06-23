@@ -27,7 +27,9 @@ namespace Nutq.Core.Interfaces
         PlanStrengthAnalysis Strengths,
         PlanWeaknessAnalysis Weaknesses,
         PlanProgressComparison ProgressComparison,
-        PlanClinicalInsights ClinicalInsights);
+        PlanClinicalInsights ClinicalInsights,
+        IReadOnlyList<RecurringDifficultyItem> RecurringDifficulties,
+        SuggestedNextTherapyContent SuggestedNextContent);
 
     public record TherapyPlanSummary(
         int TotalSessionDurationSeconds,
@@ -39,7 +41,10 @@ namespace Nutq.Core.Interfaces
         double AveragePronunciationSimilarity,
         int TotalFailedWords,
         int TotalCompletedWords,
-        int TotalSessions);
+        int TotalSessions,
+        double MasteredSimilarity,
+        double PlanOutcomeScore,
+        string PlanOutcomeRating);
 
     public record PlanWordPerformance(
         string Word,
@@ -86,7 +91,8 @@ namespace Nutq.Core.Interfaces
         double? AccuracyDelta,
         double? SimilarityDelta,
         double? FirstAttemptDelta,
-        bool HasData);
+        bool HasData,
+        string TrendRating);
 
     public record PlanProgressComparison(
         PlanPeriodComparison VsPreviousSession,
@@ -95,15 +101,30 @@ namespace Nutq.Core.Interfaces
         PlanPeriodComparison VsLast30Days);
 
     public record PlanClinicalInsights(
-        IReadOnlyList<string> Strengths,
-        IReadOnlyList<string> Weaknesses,
-        IReadOnlyList<PlanFocusAreaItem> RecommendedFocusAreas,
-        IReadOnlyList<string> SuggestedNextExercises,
-        IReadOnlyList<string> TherapyAttentionAreas,
+        string ClinicalSummary,
+        IReadOnlyList<string> StrengthAnalysis,
+        IReadOnlyList<string> WeaknessAnalysis,
+        IReadOnlyList<string> TreatmentRecommendations,
+        IReadOnlyList<PlanFocusAreaItem> SuggestedFocusAreas,
+        IReadOnlyList<string> TherapistNotes,
         string AnalysisSource);
 
     public record PlanFocusAreaItem(
         string Area,
         string Rationale,
         int Priority);
+
+    public record RecurringDifficultyItem(
+        string Word,
+        string? Category,
+        int Frequency,
+        double SeverityScore,
+        string AttentionLevel);
+
+    public record SuggestedNextTherapyContent(
+        IReadOnlyList<string> CategoriesNeedingReinforcement,
+        IReadOnlyList<string> VocabularyNeedingRepetition,
+        string DifficultyAdjustment,
+        int RecommendedExerciseCount,
+        string Reasoning);
 }

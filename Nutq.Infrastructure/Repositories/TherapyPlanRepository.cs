@@ -51,6 +51,8 @@ namespace Nutq.Infrastructure.Repositories
         public async Task<TherapyPlan?> GetPlanWithExercisesByIdAsync(int planId)
         {
             return await _context.TherapyPlans
+                .Include(tp => tp.Patient)
+                .Include(tp => tp.Doctor)
                 .Include(tp => tp.PlanExercises!)
                     .ThenInclude(pe => pe.Exercise)
                 .FirstOrDefaultAsync(tp => tp.Id == planId);

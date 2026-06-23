@@ -3,6 +3,7 @@ using Nutq.Infrastructure.Data;
 using Nutq.Core.Interfaces;
 using Nutq.Infrastructure.Repositories;
 using Nutq.Core.Services;
+using Nutq.Core.Models;
 using Microsoft.OpenApi.Models;
 
 
@@ -50,6 +51,11 @@ builder.Services.AddScoped<IPatientDashboardService, PatientDashboardService>();
 builder.Services.AddScoped<IPatientService, PatientService>();
 
 builder.Services.AddScoped<IDoctorAnalyticsService, DoctorAnalyticsService>();
+
+// Register Plan Analytics config and insight generators
+builder.Services.Configure<PlanAnalyticsOptions>(builder.Configuration.GetSection("PlanAnalytics"));
+builder.Services.AddScoped<IClinicalInsightGenerator, RuleBasedClinicalInsightGenerator>();
+builder.Services.AddScoped<IClinicalInsightGenerator, FutureAiClinicalInsightGenerator>();
 
 builder.Services.AddScoped<ISpeechAttemptRepository, SpeechAttemptRepository>();
 builder.Services.AddScoped<ITrainingSessionRepository, TrainingSessionRepository>();

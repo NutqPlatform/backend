@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Nutq.Web.DTOs.PlanAnalytics
 {
     public class TherapyPlanSummaryDto
@@ -12,6 +15,9 @@ namespace Nutq.Web.DTOs.PlanAnalytics
         public int TotalFailedWords { get; set; }
         public int TotalCompletedWords { get; set; }
         public int TotalSessions { get; set; }
+        public double MasteredSimilarity { get; set; }
+        public double PlanOutcomeScore { get; set; }
+        public string PlanOutcomeRating { get; set; } = string.Empty;
     }
 
     public class RecognizedWordHistoryDto
@@ -71,12 +77,14 @@ namespace Nutq.Web.DTOs.PlanAnalytics
         public double? SimilarityDelta { get; set; }
         public double? FirstAttemptDelta { get; set; }
         public bool HasData { get; set; }
+        public string TrendRating { get; set; } = "Stable";
     }
 
     public class PlanProgressComparisonDto
     {
         public PlanPeriodComparisonDto VsPreviousSession { get; set; } = new();
         public PlanPeriodComparisonDto VsPreviousPlan { get; set; } = new();
+        public PlanProgressComparisonDto() { }
         public PlanPeriodComparisonDto VsLast7Days { get; set; } = new();
         public PlanPeriodComparisonDto VsLast30Days { get; set; } = new();
     }
@@ -90,17 +98,31 @@ namespace Nutq.Web.DTOs.PlanAnalytics
 
     public class PlanClinicalInsightsDto
     {
-        public IEnumerable<string> Strengths { get; set; } = Array.Empty<string>();
-        public IEnumerable<string> Weaknesses { get; set; } = Array.Empty<string>();
-        public IEnumerable<PlanFocusAreaItemDto> RecommendedFocusAreas { get; set; } = Array.Empty<PlanFocusAreaItemDto>();
-        public IEnumerable<string> SuggestedNextExercises { get; set; } = Array.Empty<string>();
-        public IEnumerable<string> TherapyAttentionAreas { get; set; } = Array.Empty<string>();
+        public string ClinicalSummary { get; set; } = string.Empty;
+        public IEnumerable<string> StrengthAnalysis { get; set; } = Array.Empty<string>();
+        public IEnumerable<string> WeaknessAnalysis { get; set; } = Array.Empty<string>();
+        public IEnumerable<string> TreatmentRecommendations { get; set; } = Array.Empty<string>();
+        public IEnumerable<PlanFocusAreaItemDto> SuggestedFocusAreas { get; set; } = Array.Empty<PlanFocusAreaItemDto>();
+        public IEnumerable<string> TherapistNotes { get; set; } = Array.Empty<string>();
+        public string AnalysisSource { get; set; } = "RuleBased";
+    }
 
-        /// <summary>
-        /// "Deterministic" or "Ai" — signals whether insights were rule-based or AI-generated.
-        /// Frontend renders identically regardless of value.
-        /// </summary>
-        public string AnalysisSource { get; set; } = "Deterministic";
+    public class RecurringDifficultyItemDto
+    {
+        public string Word { get; set; } = string.Empty;
+        public string? Category { get; set; }
+        public int Frequency { get; set; }
+        public double SeverityScore { get; set; }
+        public string AttentionLevel { get; set; } = "Low";
+    }
+
+    public class SuggestedNextTherapyContentDto
+    {
+        public IEnumerable<string> CategoriesNeedingReinforcement { get; set; } = Array.Empty<string>();
+        public IEnumerable<string> VocabularyNeedingRepetition { get; set; } = Array.Empty<string>();
+        public string DifficultyAdjustment { get; set; } = string.Empty;
+        public int RecommendedExerciseCount { get; set; }
+        public string Reasoning { get; set; } = string.Empty;
     }
 
     public class TherapyPlanAnalyticsDto
@@ -118,5 +140,33 @@ namespace Nutq.Web.DTOs.PlanAnalytics
         public PlanWeaknessAnalysisDto Weaknesses { get; set; } = new();
         public PlanProgressComparisonDto ProgressComparison { get; set; } = new();
         public PlanClinicalInsightsDto ClinicalInsights { get; set; } = new();
+        public IEnumerable<RecurringDifficultyItemDto> RecurringDifficulties { get; set; } = Array.Empty<RecurringDifficultyItemDto>();
+        public SuggestedNextTherapyContentDto SuggestedNextContent { get; set; } = new();
+    }
+
+    // ─── Therapist PDF Report Model (Export-Ready structure) ──────────────────
+
+    public class TherapyPlanReportModel
+    {
+        public int ReportId { get; set; }
+        public string GeneratedAt { get; set; } = string.Empty;
+        public string DoctorName { get; set; } = string.Empty;
+        public string PatientName { get; set; } = string.Empty;
+        public string PatientAge { get; set; } = string.Empty;
+        public string Diagnosis { get; set; } = string.Empty;
+        
+        public int PlanId { get; set; }
+        public string PlanDescription { get; set; } = string.Empty;
+        public string PlanStatus { get; set; } = string.Empty;
+        public string StartDate { get; set; } = string.Empty;
+        public string EndDate { get; set; } = string.Empty;
+        
+        public TherapyPlanSummaryDto Summary { get; set; } = new();
+        public IEnumerable<PlanWordPerformanceDto> Words { get; set; } = Array.Empty<PlanWordPerformanceDto>();
+        public IEnumerable<PlanCategoryPerformanceDto> Categories { get; set; } = Array.Empty<PlanCategoryPerformanceDto>();
+        public PlanProgressComparisonDto ProgressComparison { get; set; } = new();
+        public PlanClinicalInsightsDto ClinicalInsights { get; set; } = new();
+        public IEnumerable<RecurringDifficultyItemDto> RecurringDifficulties { get; set; } = Array.Empty<RecurringDifficultyItemDto>();
+        public SuggestedNextTherapyContentDto SuggestedNextContent { get; set; } = new();
     }
 }

@@ -1,20 +1,18 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Nutq.Core.Entities;
 using Nutq.Core.Interfaces;
+using Nutq.Core.Models;
 
 namespace Nutq.Core.Services
 {
     /// <summary>
     /// Pure, stateless computation engine for therapy-plan-level analytics.
-    /// Contains no I/O — all inputs are pre-loaded lists passed in from the service layer.
-    /// Designed for AI-readiness: the output shape of <see cref="PlanClinicalInsights"/> is
-    /// identical whether produced by this deterministic engine or an AI provider.
+    /// Expanded with Clinical Intelligence & Decision Support logic.
     /// </summary>
     public static class PlanAnalyticsEngine
     {
-        private const double StrengthThreshold = 70.0;
-        private const double LowSimilarityThreshold = 0.6;
-        private const double HighRetryThreshold = 2.0;
-
         // ─── Top-level orchestrator ──────────────────────────────────────────────
 
         public static TherapyPlanAnalytics Compute(
@@ -22,14 +20,20 @@ namespace Nutq.Core.Services
             IReadOnlyList<TrainingSession> sessions,
             IReadOnlyList<SpeechAttempt> attempts,
             IReadOnlyList<SessionClinicalReport> reports,
-            PlanProgressComparison progressComparison)
+            PlanProgressComparison progressComparison,
+            PlanAnalyticsOptions options,
+            IClinicalInsightGenerator insightGenerator)
         {
             var words = BuildWordPerformances(attempts);
             var categories = BuildCategoryPerformances(words);
-            var summary = BuildSummary(sessions, attempts, words);
-            var strengths = BuildStrengths(words, categories);
-            var weaknesses = BuildWeaknesses(words, categories);
-            var insights = BuildClinicalInsights(strengths, weaknesses, words, categories, reports);
+            var summary = BuildSummary(sessions, attempts, words, options);
+            var strengths = BuildStrengths(words, categories, options);
+            var weaknesses = BuildWeaknesses(words, categories, attempts, options);
+            var recurringDifficulties = BuildRecurringDifficulties(attempts);
+            var suggestedNextContent = BuildSuggestedNextContent(summary, words, categories, plan.PlanExercises?.Count ?? 4);
+
+            // Delegate clinical insights generation to the abstraction layer
+            var insights = insightGenerator.GenerateInsights(words, categories, reports, strengths, weaknesses);
 
             return new TherapyPlanAnalytics(
                 plan.Id,
@@ -44,7 +48,9 @@ namespace Nutq.Core.Services
                 strengths,
                 weaknesses,
                 progressComparison,
-                insights);
+                insights,
+                recurringDifficulties,
+                suggestedNextContent);
         }
 
         // ─── Summary ─────────────────────────────────────────────────────────────
@@ -52,7 +58,8 @@ namespace Nutq.Core.Services
         public static TherapyPlanSummary BuildSummary(
             IReadOnlyList<TrainingSession> sessions,
             IReadOnlyList<SpeechAttempt> attempts,
-            IReadOnlyList<PlanWordPerformance> words)
+            IReadOnlyList<PlanWordPerformance> words,
+            PlanAnalyticsOptions options)
         {
             var totalDuration = sessions.Sum(s => s.TotalDurationSeconds);
             var totalAttempts = attempts.Count;
@@ -74,6 +81,25 @@ namespace Nutq.Core.Services
             var avgSimilarity = totalAttempts > 0
                 ? Round(attempts.Average(a => a.SimilarityScore)) : 0;
 
+            // 1. Mastered Similarity (Average of best similarity score per word)
+            var masteredSimilarity = words.Any()
+                ? Round(words.Average(w => w.BestSimilarityScore)) : 0;
+
+            // 2. Plan Outcome Score (Configurable Weighted Score)
+            var rawScore = (options.WsrWeight * wordSuccessRate)
+                + (options.AvgSimilarityWeight * avgSimilarity)
+                + (options.FasrWeight * firstAttemptRate)
+                - (options.FailedWordPenalty * failedWords);
+
+            var outcomeScore = Math.Clamp(Round(rawScore), 0, 100);
+
+            // 3. Plan Outcome Rating
+            string outcomeRating;
+            if (outcomeScore >= options.ExcellentThreshold) outcomeRating = "Excellent";
+            else if (outcomeScore >= options.GoodThreshold) outcomeRating = "Good";
+            else if (outcomeScore >= options.ModerateThreshold) outcomeRating = "Moderate";
+            else outcomeRating = "Needs Attention";
+
             return new TherapyPlanSummary(
                 totalDuration,
                 totalWords,
@@ -84,7 +110,10 @@ namespace Nutq.Core.Services
                 avgSimilarity,
                 failedWords,
                 succeededWords,
-                sessions.Count);
+                sessions.Count,
+                masteredSimilarity,
+                outcomeScore,
+                outcomeRating);
         }
 
         // ─── Word-level breakdown ────────────────────────────────────────────────
@@ -117,7 +146,7 @@ namespace Nutq.Core.Services
 
                 result.Add(new PlanWordPerformance(
                     first.ExpectedWord,
-                    first.ExpectedWord,   // enriched in service if vocab available
+                    first.ExpectedWord,
                     first.ExpectedWord,
                     first.Category,
                     ordered.Count,
@@ -165,7 +194,8 @@ namespace Nutq.Core.Services
 
         public static PlanStrengthAnalysis BuildStrengths(
             IReadOnlyList<PlanWordPerformance> words,
-            IReadOnlyList<PlanCategoryPerformance> categories)
+            IReadOnlyList<PlanCategoryPerformance> categories,
+            PlanAnalyticsOptions options)
         {
             var bestWords = words
                 .Where(w => w.FinalSuccess)
@@ -175,7 +205,7 @@ namespace Nutq.Core.Services
                 .ToList();
 
             var bestCategories = categories
-                .Where(c => c.AccuracyPercent >= StrengthThreshold)
+                .Where(c => c.AccuracyPercent >= options.GoodThreshold)
                 .OrderByDescending(c => c.AccuracyPercent)
                 .Take(5)
                 .ToList();
@@ -197,7 +227,9 @@ namespace Nutq.Core.Services
 
         public static PlanWeaknessAnalysis BuildWeaknesses(
             IReadOnlyList<PlanWordPerformance> words,
-            IReadOnlyList<PlanCategoryPerformance> categories)
+            IReadOnlyList<PlanCategoryPerformance> categories,
+            IReadOnlyList<SpeechAttempt> attempts,
+            PlanAnalyticsOptions options)
         {
             var failedWords = words
                 .Where(w => !w.FinalSuccess)
@@ -205,24 +237,24 @@ namespace Nutq.Core.Services
                 .ToList();
 
             var highRetryWords = words
-                .Where(w => w.TotalAttempts > HighRetryThreshold)
+                .Where(w => w.TotalAttempts > options.HighRetryWordThreshold)
                 .OrderByDescending(w => w.TotalAttempts)
                 .Take(10)
                 .ToList();
 
             var weakCategories = categories
-                .Where(c => c.AccuracyPercent < StrengthThreshold)
+                .Where(c => c.AccuracyPercent < options.GoodThreshold)
                 .OrderBy(c => c.AccuracyPercent)
                 .ToList();
 
             var lowSimilarityWords = words
-                .Where(w => w.BestSimilarityScore < LowSimilarityThreshold)
+                .Where(w => w.BestSimilarityScore < options.LowSimilarityWordThreshold)
                 .OrderBy(w => w.BestSimilarityScore)
                 .Take(10)
                 .ToList();
 
             var recurringDifficulties = weakCategories
-                .Where(c => c.AverageAttemptsPerWord > HighRetryThreshold)
+                .Where(c => c.AverageAttemptsPerWord > options.HighRetryWordThreshold)
                 .Select(c => $"{c.Category} (avg {c.AverageAttemptsPerWord:0.#} attempts/word)")
                 .ToList();
 
@@ -238,110 +270,167 @@ namespace Nutq.Core.Services
             double currentFirstAttempt,
             double? refAccuracy,
             double? refSimilarity,
-            double? refFirstAttempt)
+            double? refFirstAttempt,
+            PlanAnalyticsOptions options)
         {
             if (refAccuracy == null)
-                return new PlanPeriodComparison(period, null, null, null, false);
+                return new PlanPeriodComparison(period, null, null, null, false, "Stable");
+
+            var accuracyDelta = Round(currentAccuracy - refAccuracy.Value);
+            var similarityDelta = refSimilarity.HasValue ? (double?)Round(currentSimilarity - refSimilarity.Value) : null;
+            var firstAttemptDelta = refFirstAttempt.HasValue ? (double?)Round(currentFirstAttempt - refFirstAttempt.Value) : null;
+
+            // Trend Rating calculation
+            string trendRating = "Stable";
+            if (accuracyDelta >= options.StrongImprovementThreshold)
+                trendRating = "Strong Improvement";
+            else if (accuracyDelta >= options.ImprovingThreshold)
+                trendRating = "Improving";
+            else if (accuracyDelta <= options.CriticalDeclineThreshold)
+                trendRating = "Critical Decline";
+            else if (accuracyDelta <= options.DecliningThreshold)
+                trendRating = "Declining";
 
             return new PlanPeriodComparison(
                 period,
-                Round(currentAccuracy - refAccuracy.Value),
-                refSimilarity.HasValue ? Round(currentSimilarity - refSimilarity.Value) : null,
-                refFirstAttempt.HasValue ? Round(currentFirstAttempt - refFirstAttempt.Value) : null,
-                true);
+                accuracyDelta,
+                similarityDelta,
+                firstAttemptDelta,
+                true,
+                trendRating);
         }
 
-        // ─── Clinical Insights (Deterministic V1) ────────────────────────────────
+        // ─── Recurring Difficulty Detection ──────────────────────────────────────
 
-        public static PlanClinicalInsights BuildClinicalInsights(
-            PlanStrengthAnalysis strengths,
-            PlanWeaknessAnalysis weaknesses,
-            IReadOnlyList<PlanWordPerformance> words,
-            IReadOnlyList<PlanCategoryPerformance> categories,
-            IReadOnlyList<SessionClinicalReport> reports)
+        public static IReadOnlyList<RecurringDifficultyItem> BuildRecurringDifficulties(
+            IReadOnlyList<SpeechAttempt> attempts)
         {
-            var strengthMessages = new List<string>();
-            var weaknessMessages = new List<string>();
-            var focusAreas = new List<PlanFocusAreaItem>();
-            var suggestedExercises = new List<string>();
-            var therapyAttention = new List<string>();
+            var wordGroups = attempts.GroupBy(a => a.ExpectedWord).ToList();
+            var result = new List<RecurringDifficultyItem>();
 
-            // Strengths
-            foreach (var cat in strengths.BestPerformingCategories.Take(3))
-                strengthMessages.Add($"Strong performance in '{cat.Category}' ({cat.AccuracyPercent:0.#}% accuracy).");
-
-            if (strengths.MasteredOnFirstAttempt.Count > 0)
-                strengthMessages.Add($"{strengths.MasteredOnFirstAttempt.Count} word(s) mastered on the first attempt — excellent phonetic retention.");
-
-            if (strengthMessages.Count == 0 && words.Any(w => w.FinalSuccess))
-                strengthMessages.Add($"{words.Count(w => w.FinalSuccess)} word(s) successfully completed during this plan.");
-
-            // Weaknesses
-            foreach (var cat in weaknesses.LowPerformanceCategories.Take(3))
-                weaknessMessages.Add($"Category '{cat.Category}' requires attention ({cat.AccuracyPercent:0.#}% accuracy, avg {cat.AverageAttemptsPerWord:0.#} attempts/word).");
-
-            if (weaknesses.FailedWords.Count > 0)
-                weaknessMessages.Add($"{weaknesses.FailedWords.Count} word(s) could not be completed successfully.");
-
-            if (weaknessMessages.Count == 0)
-                weaknessMessages.Add("No significant weaknesses identified in this plan.");
-
-            // Focus areas
-            var priority = 1;
-            foreach (var cat in weaknesses.LowPerformanceCategories.Take(3))
+            foreach (var g in wordGroups)
             {
-                var rationale = cat.AverageAttemptsPerWord > HighRetryThreshold
-                    ? $"High retry rate ({cat.AverageAttemptsPerWord:0.#} attempts/word) in '{cat.Category}'"
-                    : $"Low accuracy ({cat.AccuracyPercent:0.#}%) in '{cat.Category}'";
-                focusAreas.Add(new PlanFocusAreaItem(cat.Category, rationale, priority++));
-            }
+                var word = g.Key;
+                var category = g.First().Category;
 
-            foreach (var w in weaknesses.FailedWords.Take(5))
-                focusAreas.Add(new PlanFocusAreaItem(
-                    w.Word,
-                    $"Word '{w.Word}' not yet mastered (best similarity {w.BestSimilarityScore:0.##})",
-                    priority++));
+                var sessionGroups = g.GroupBy(a => a.TrainingSessionId).ToList();
+                int failedSessionsCount = 0;
+                double totalAttemptsAcrossSessions = 0;
 
-            // Suggested exercises
-            foreach (var cat in weaknesses.LowPerformanceCategories.Take(2))
-                suggestedExercises.Add($"Additional '{cat.Category}' vocabulary exercises with focused repetition.");
-
-            if (weaknesses.HighRetryWords.Count > 0)
-                suggestedExercises.Add("Slow-paced word drills targeting high-retry vocabulary.");
-
-            if (suggestedExercises.Count == 0)
-                suggestedExercises.Add("Continue with next-level vocabulary in current categories.");
-
-            // Therapy attention
-            foreach (var w in weaknesses.LowSimilarityWords.Take(3))
-                therapyAttention.Add($"Word '{w.Word}' shows poor phonetic match (best similarity {w.BestSimilarityScore:0.##}). Manual articulation therapy recommended.");
-
-            foreach (var d in weaknesses.RecurringDifficulties.Take(2))
-                therapyAttention.Add($"Recurring difficulty: {d}.");
-
-            // Merge report-based patterns if available
-            foreach (var report in reports)
-            {
-                if (!string.IsNullOrWhiteSpace(report.WeaknessAreasJson))
+                foreach (var sg in sessionGroups)
                 {
-                    try
+                    bool succeededInSession = sg.Any(a => a.IsCorrect);
+                    if (!succeededInSession)
                     {
-                        var areas = System.Text.Json.JsonSerializer.Deserialize<List<string>>(report.WeaknessAreasJson);
-                        if (areas != null)
-                            foreach (var area in areas.Where(a => !therapyAttention.Any(t => t.Contains(a))).Take(2))
-                                therapyAttention.Add($"Recurring pronunciation difficulty in: {area}.");
+                        failedSessionsCount++;
                     }
-                    catch { /* ignore malformed json */ }
+                    totalAttemptsAcrossSessions += sg.Count();
+                }
+
+                double avgAttemptsPerSession = sessionGroups.Any()
+                    ? totalAttemptsAcrossSessions / sessionGroups.Count
+                    : 0;
+
+                double bestSimilarity = g.Any() ? g.Max(a => a.SimilarityScore) : 0;
+
+                // Severity Score Calculation
+                double severityScore = Math.Max(0, avgAttemptsPerSession - 1.0) * 20.0
+                    + (100.0 - bestSimilarity)
+                    + (failedSessionsCount * 15.0);
+
+                severityScore = Math.Clamp(Math.Round(severityScore, 2), 0, 100);
+
+                // Attention Level Allocation
+                string attentionLevel = "Low";
+                if (severityScore >= 75 || failedSessionsCount >= 3)
+                {
+                    attentionLevel = "High";
+                }
+                else if (severityScore >= 40 || failedSessionsCount >= 2)
+                {
+                    attentionLevel = "Medium";
+                }
+
+                // Flag if word has triggered failure, high severity or average attempts > 2
+                if (severityScore >= 30 || failedSessionsCount > 0 || avgAttemptsPerSession > 2.0)
+                {
+                    result.Add(new RecurringDifficultyItem(
+                        word,
+                        category,
+                        failedSessionsCount,
+                        severityScore,
+                        attentionLevel));
                 }
             }
 
-            return new PlanClinicalInsights(
-                strengthMessages,
-                weaknessMessages,
-                focusAreas,
-                suggestedExercises,
-                therapyAttention,
-                AnalysisSource: "Deterministic");
+            return result.OrderByDescending(r => r.SeverityScore).ToList();
+        }
+
+        // ─── Suggested Next Content ──────────────────────────────────────────────
+
+        public static SuggestedNextTherapyContent BuildSuggestedNextContent(
+            TherapyPlanSummary summary,
+            IReadOnlyList<PlanWordPerformance> words,
+            IReadOnlyList<PlanCategoryPerformance> categories,
+            int currentExerciseCount)
+        {
+            var categoriesNeedingReinforcement = categories
+                .Where(c => c.AccuracyPercent < 70)
+                .Select(c => c.Category)
+                .ToList();
+
+            var vocabularyNeedingRepetition = words
+                .Where(w => !w.FinalSuccess || w.TotalAttempts > 2)
+                .Select(w => w.Word)
+                .ToList();
+
+            // Difficulty adjustment
+            string difficultyAdjustment = "Maintain level (continue current complexity)";
+            if (summary.PlanOutcomeScore >= 85)
+            {
+                difficultyAdjustment = "Increase difficulty (introduce longer words / advanced syntax)";
+            }
+            else if (summary.PlanOutcomeScore < 50)
+            {
+                difficultyAdjustment = "Reduce difficulty (focus on single syllable words / shorter lists)";
+            }
+
+            // Exercise count advice
+            int recommendedExerciseCount = currentExerciseCount;
+            if (summary.PlanOutcomeScore >= 70)
+            {
+                recommendedExerciseCount = Math.Min(6, currentExerciseCount + 1);
+            }
+            else if (summary.PlanOutcomeScore < 50)
+            {
+                recommendedExerciseCount = Math.Max(2, currentExerciseCount - 1);
+            }
+
+            // Reasoning phrasing
+            string reasoning;
+            if (summary.PlanOutcomeScore >= 85)
+            {
+                reasoning = $"Excellent overall rating ({summary.PlanOutcomeScore}% score). Patient showed rapid phonetic mastery, indicating readiness for a higher difficulty tier and additional exercises.";
+            }
+            else if (summary.PlanOutcomeScore >= 70)
+            {
+                reasoning = $"Good progress ({summary.PlanOutcomeScore}% score). General articulation is stable; continue current difficulty but add an extra reinforcement exercise.";
+            }
+            else if (summary.PlanOutcomeScore >= 50)
+            {
+                reasoning = $"Moderate capability ({summary.PlanOutcomeScore}% score). Mild phonetic struggles in {categoriesNeedingReinforcement.Count} categories. Suggest keeping list sizes stable and repeating failed words.";
+            }
+            else
+            {
+                reasoning = $"Needs attention ({summary.PlanOutcomeScore}% score). Word success rate was at {summary.WordSuccessRate}% with {summary.TotalFailedWords} failed words. Recommended to simplify target vocabulary and shorten lists.";
+            }
+
+            return new SuggestedNextTherapyContent(
+                categoriesNeedingReinforcement,
+                vocabularyNeedingRepetition,
+                difficultyAdjustment,
+                recommendedExerciseCount,
+                reasoning);
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────
