@@ -72,9 +72,9 @@ public async Task<IEnumerable<object>> GetDoctorPatientsAsync(int doctorId)
     if (doctor == null)
         throw new Exception("Doctor not found");
 
-    var patients = await _patientRepo.GetByDoctorIdAsync(doctorId);
+    var activeRelationships = await _relationshipRepo.GetActiveByDoctorIdAsync(doctorId);
+    var patients = activeRelationships.Select(r => r.Patient).Where(p => p != null).ToList();
 
-    // هنا بنرجع نسخة خفيفة لتجنب cycles
     return patients.Select(p => new 
     {
         p.Id,
@@ -99,7 +99,8 @@ public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
     if (patient == null)
         throw new Exception($"Patient with ID {patientId} not found");
 
-    var isCurrent = patient.DoctorId == doctorId;
+    var active = await _relationshipRepo.GetActiveAsync(doctorId, patientId);
+    var isCurrent = active != null;
     if (!isCurrent)
     {
         var ended = (await _relationshipRepo.GetFormerByDoctorIdAsync(doctorId))
@@ -140,21 +141,25 @@ public async Task<object?> GetPatientByIdAsync(int doctorId, int patientId)
     };
 }
 
-        public async Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis, string? diagnosisFileUrl = null)
+public async Task UpdatePatientDiagnosisAsync(int doctorId, int patientId, string diagnosis, string? diagnosisFileUrl = null)
 {
     var doctor = await _doctorRepo.GetByIdAsync(doctorId);
     if (doctor == null)
         throw new Exception("Doctor not found");
 
     var patient = await _patientRepo.GetByIdAsync(patientId);
-    if (patient == null || !patient.DoctorId.HasValue || patient.DoctorId != doctorId)
-        throw new Exception("Patient not found or does not belong to this doctor");
+    if (patient == null)
+        throw new Exception("Patient not found");
 
-            patient.DiagnosisText = diagnosis;
-            if (!string.IsNullOrEmpty(diagnosisFileUrl))
-            {
-                patient.DiagnosisFileUrl = diagnosisFileUrl;
-            }
+    var active = await _relationshipRepo.GetActiveAsync(doctorId, patientId);
+    if (active == null)
+        throw new Exception("Patient is no longer assigned to you. Plans and reports are read-only.");
+
+    patient.DiagnosisText = diagnosis;
+    if (!string.IsNullOrEmpty(diagnosisFileUrl))
+    {
+        patient.DiagnosisFileUrl = diagnosisFileUrl;
+    }
     await _patientRepo.UpdateAsync(patient);
 }
 

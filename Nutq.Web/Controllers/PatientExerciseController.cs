@@ -21,6 +21,7 @@ namespace Nutq.Web.Controllers
         private readonly IExerciseProgressService _exerciseProgressService;
         private readonly IPlanExerciseRepository _planExerciseRepo;
         private readonly IPatientAnalyticsService _analyticsService;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
         public PatientExerciseController(
             ITherapyPlanService therapyPlanService,
@@ -28,7 +29,8 @@ namespace Nutq.Web.Controllers
             IVocabularyExerciseRepository vocabExerciseRepo,
             IExerciseProgressService exerciseProgressService,
             IPlanExerciseRepository planExerciseRepo,
-            IPatientAnalyticsService analyticsService)
+            IPatientAnalyticsService analyticsService,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _therapyPlanService = therapyPlanService;
             _vocabularyRepo = vocabularyRepo;
@@ -36,6 +38,7 @@ namespace Nutq.Web.Controllers
             _exerciseProgressService = exerciseProgressService;
             _planExerciseRepo = planExerciseRepo;
             _analyticsService = analyticsService;
+            _relationshipRepo = relationshipRepo;
         }
 
         
@@ -48,6 +51,24 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}/plans/{planId}/exercises")]
         public async Task<IActionResult> GetPlanExercises(int patientId, int planId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null)
+                return Forbid();
+
+            if (user.Value.Role == "patient")
+            {
+                if (user.Value.UserId != patientId)
+                    return Forbid();
+            }
+            else if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
             try
             {
                 var plan = await _therapyPlanService.GetPlanWithExercisesForPatientAsync(planId, patientId);
@@ -91,6 +112,24 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}/exercises/{planExerciseId}/vocabulary")]
         public async Task<IActionResult> GetExerciseVocabulary(int patientId, int planExerciseId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null)
+                return Forbid();
+
+            if (user.Value.Role == "patient")
+            {
+                if (user.Value.UserId != patientId)
+                    return Forbid();
+            }
+            else if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
             try
             {
                 var planExercise = await _planExerciseRepo.GetByIdAsync(planExerciseId);
@@ -149,6 +188,9 @@ namespace Nutq.Web.Controllers
         [HttpPost("{patientId}/exercises/{planExerciseId}/start")]
         public async Task<IActionResult> StartExercise(int patientId, int planExerciseId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
             try
             {
                 await _exerciseProgressService.StartExerciseAsync(patientId, planExerciseId);
@@ -179,6 +221,9 @@ namespace Nutq.Web.Controllers
         [HttpPost("{patientId}/exercises/{planExerciseId}/complete")]
         public async Task<IActionResult> CompleteExercise(int patientId, int planExerciseId, [FromBody] CompleteExerciseRequest? body = null)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
             try
             {
                 await _exerciseProgressService.CompleteExerciseAsync(patientId, planExerciseId, body?.Score, body?.SessionData);
@@ -196,6 +241,9 @@ namespace Nutq.Web.Controllers
         [HttpPost("{patientId}/exercises/{planExerciseId}/complete-repetition")]
         public async Task<IActionResult> CompleteRepetition(int patientId, int planExerciseId, [FromBody] CompleteRepetitionRequest? body = null)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
             try
             {
                 await _exerciseProgressService.CompleteRepetitionAsync(patientId, planExerciseId, body?.SessionData);
@@ -213,6 +261,24 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}/exercises/{planExerciseId}/session-analytics")]
         public async Task<IActionResult> GetSessionAnalytics(int patientId, int planExerciseId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null)
+                return Forbid();
+
+            if (user.Value.Role == "patient")
+            {
+                if (user.Value.UserId != patientId)
+                    return Forbid();
+            }
+            else if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
             try
             {
                 var analytics = await _analyticsService.GetExerciseSessionAnalyticsAsync(patientId, planExerciseId);

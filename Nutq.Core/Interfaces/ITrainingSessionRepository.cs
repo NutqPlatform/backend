@@ -12,5 +12,6 @@ namespace Nutq.Core.Interfaces
         Task<IEnumerable<TrainingSession>> GetByPatientAsync(int patientId, DateTime? from = null, DateTime? to = null);
         Task<int> GetTotalDurationSecondsAsync(int patientId);
         Task<IReadOnlyList<PatientSessionTimelineProjection>> GetSessionTimelineProjectionsAsync(int patientId);
+        Task<IEnumerable<TrainingSession>> GetByPlanExerciseIdsAsync(IEnumerable<int> planExerciseIds);
     }
 }

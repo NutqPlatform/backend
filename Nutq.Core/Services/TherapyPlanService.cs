@@ -43,7 +43,8 @@ namespace Nutq.Core.Services
 
             var patient = await _patientRepo.GetByIdAsync(patientId);
             if (patient == null) throw new Exception("Patient not found");
-            if (!patient.DoctorId.HasValue || patient.DoctorId != doctorId)
+            var activeRelationship = await _relationshipRepo.GetActiveAsync(doctorId, patientId);
+            if (activeRelationship == null)
                 throw new Exception("You cannot create a plan for a patient not assigned to you.");
 
             var endDate = command.EndDate ?? command.StartDate.AddDays(7);
@@ -116,7 +117,8 @@ namespace Nutq.Core.Services
             if (patient == null)
                 throw new Exception("Patient not found");
 
-            var isCurrent = patient.DoctorId == doctorId;
+            var activeRelationship = await _relationshipRepo.GetActiveAsync(doctorId, patientId);
+            var isCurrent = activeRelationship != null;
             if (!isCurrent && !await _relationshipRepo.HasRelationshipAsync(doctorId, patientId))
                 throw new Exception("Patient does not belong to this doctor");
 
@@ -233,8 +235,8 @@ namespace Nutq.Core.Services
             if (plan.IsArchived)
                 throw new Exception("This plan is archived and cannot be modified.");
 
-            var patient = await _patientRepo.GetByIdAsync(plan.PatientId);
-            if (patient == null || patient.DoctorId != plan.DoctorId)
+            var activeRelationship = await _relationshipRepo.GetActiveAsync(plan.DoctorId, plan.PatientId);
+            if (activeRelationship == null)
                 throw new Exception("Patient is no longer assigned to you. Plans and reports are read-only.");
         }
 

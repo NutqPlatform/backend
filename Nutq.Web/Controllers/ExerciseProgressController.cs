@@ -1,4 +1,3 @@
-// Web/Controllers/ExerciseProgressController.cs
 using Microsoft.AspNetCore.Mvc;
 using Nutq.Core.Commands;
 using Nutq.Core.Interfaces;
@@ -13,15 +12,23 @@ namespace Nutq.Web.Controllers
     public class ExerciseProgressController : ControllerBase
     {
         private readonly IExerciseProgressService _progressService;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
-        public ExerciseProgressController(IExerciseProgressService progressService)
+        public ExerciseProgressController(
+            IExerciseProgressService progressService,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _progressService = progressService;
+            _relationshipRepo = relationshipRepo;
         }
 
         [HttpPost]
         public async Task<IActionResult> AddOrUpdateProgress([FromBody] ExerciseProgressCommand command)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != command.PatientId)
+                return Forbid();
+
             try
             {
                 await _progressService.AddOrUpdateProgressAsync(command);
@@ -36,6 +43,25 @@ namespace Nutq.Web.Controllers
         [HttpGet("patient/{patientId}")]
         public async Task<IActionResult> GetPatientProgress(int patientId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null)
+                return Forbid();
+
+            if (user.Value.Role == "patient")
+            {
+                if (user.Value.UserId != patientId)
+                    return Forbid();
+            }
+            else if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
+
             var progresses = await _progressService.GetPatientProgressAsync(patientId);
 
             var dtos = progresses.Select(p => new ExerciseProgressDto
@@ -59,6 +85,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("{patientId}/{planExerciseId}/start")]
         public async Task<IActionResult> StartExercise(int patientId, int planExerciseId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 await _progressService.StartExerciseAsync(patientId, planExerciseId);
@@ -73,6 +103,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("{patientId}/{planExerciseId}/complete-repetition")]
         public async Task<IActionResult> CompleteRepetition(int patientId, int planExerciseId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 await _progressService.CompleteRepetitionAsync(patientId, planExerciseId);
@@ -87,6 +121,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("{patientId}/{planExerciseId}/complete")]
         public async Task<IActionResult> CompleteExercise(int patientId, int planExerciseId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 await _progressService.CompleteExerciseAsync(patientId, planExerciseId);

@@ -78,5 +78,15 @@ namespace Nutq.Infrastructure.Repositories
                     ts.ProgressSnapshot != null ? ts.ProgressSnapshot.Id : (int?)null))
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<TrainingSession>> GetByPlanExerciseIdsAsync(IEnumerable<int> planExerciseIds)
+        {
+            var ids = planExerciseIds.ToList();
+            return await _context.TrainingSessions.AsNoTracking()
+                .Include(s => s.Exercise)
+                .Where(s => ids.Contains(s.PlanExerciseId))
+                .OrderBy(s => s.StartTime)
+                .ToListAsync();
+        }
     }
 }

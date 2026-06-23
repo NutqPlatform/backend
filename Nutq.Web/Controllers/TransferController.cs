@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Nutq.Core.Interfaces;
+using System;
+using System.Threading.Tasks;
 
 namespace Nutq.Web.Controllers
 {
@@ -17,6 +19,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("patient/{patientId}/leave")]
         public async Task<IActionResult> LeaveDoctor(int patientId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 await _transferService.LeaveDoctorAsync(patientId);
@@ -31,6 +37,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("doctor/{doctorId}/patients/{patientId}/release")]
         public async Task<IActionResult> ReleasePatient(int doctorId, int patientId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             try
             {
                 await _transferService.ReleasePatientAsync(doctorId, patientId);
@@ -45,6 +55,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("doctor/{doctorId}/patients/{patientId}/transfer")]
         public async Task<IActionResult> DoctorInitiateTransfer(int doctorId, int patientId, [FromBody] TransferRequestDto dto)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             try
             {
                 var request = await _transferService.DoctorInitiateTransferAsync(doctorId, patientId, dto.ToDoctorId, dto.Message);
@@ -59,6 +73,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("patient/{patientId}/request")]
         public async Task<IActionResult> RequestTransfer(int patientId, [FromBody] TransferRequestDto dto)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 var request = await _transferService.RequestTransferAsync(patientId, dto.ToDoctorId, dto.Message);
@@ -73,6 +91,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("doctor/{doctorId}/requests/{requestId}/accept")]
         public async Task<IActionResult> AcceptRequest(int doctorId, int requestId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             try
             {
                 var request = await _transferService.AcceptTransferAsync(doctorId, requestId);
@@ -87,6 +109,10 @@ namespace Nutq.Web.Controllers
         [HttpPost("doctor/{doctorId}/requests/{requestId}/reject")]
         public async Task<IActionResult> RejectRequest(int doctorId, int requestId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             try
             {
                 var request = await _transferService.RejectTransferAsync(doctorId, requestId);
@@ -101,6 +127,10 @@ namespace Nutq.Web.Controllers
         [HttpDelete("patient/{patientId}/requests/{requestId}")]
         public async Task<IActionResult> CancelRequest(int patientId, int requestId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 await _transferService.CancelTransferRequestAsync(patientId, requestId);
@@ -115,6 +145,10 @@ namespace Nutq.Web.Controllers
         [HttpGet("doctor/{doctorId}/requests")]
         public async Task<IActionResult> GetDoctorRequests(int doctorId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             try
             {
                 var requests = await _transferService.GetPendingRequestsForDoctorAsync(doctorId);
@@ -129,6 +163,10 @@ namespace Nutq.Web.Controllers
         [HttpGet("patient/{patientId}/requests")]
         public async Task<IActionResult> GetPatientRequests(int patientId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "patient" || user.Value.UserId != patientId)
+                return Forbid();
+
             try
             {
                 var requests = await _transferService.GetRequestsForPatientAsync(patientId);
@@ -143,6 +181,10 @@ namespace Nutq.Web.Controllers
         [HttpGet("doctor/{doctorId}/former-patients")]
         public async Task<IActionResult> GetFormerPatients(int doctorId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             try
             {
                 var patients = await _transferService.GetFormerPatientsAsync(doctorId);

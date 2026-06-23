@@ -15,6 +15,9 @@ namespace Nutq.Core.Services
         private readonly IPatientAnalyticsService _patientAnalyticsService;
         private readonly ITrainingSessionRepository _sessionRepo;
         private readonly ICategoryPerformanceSnapshotRepository _categoryRepo;
+        private readonly ISpeechAttemptRepository _attemptRepo;
+        private readonly ISessionClinicalReportRepository _reportRepo;
+        private readonly IProgressSnapshotRepository _snapshotRepo;
 
         public DoctorAnalyticsService(
             IDoctorRepository doctorRepo,
@@ -24,7 +27,10 @@ namespace Nutq.Core.Services
             IDoctorPatientRelationshipRepository relationshipRepo,
             IPatientAnalyticsService patientAnalyticsService,
             ITrainingSessionRepository sessionRepo,
-            ICategoryPerformanceSnapshotRepository categoryRepo)
+            ICategoryPerformanceSnapshotRepository categoryRepo,
+            ISpeechAttemptRepository attemptRepo,
+            ISessionClinicalReportRepository reportRepo,
+            IProgressSnapshotRepository snapshotRepo)
         {
             _doctorRepo = doctorRepo;
             _planRepo = planRepo;
@@ -34,11 +40,15 @@ namespace Nutq.Core.Services
             _patientAnalyticsService = patientAnalyticsService;
             _sessionRepo = sessionRepo;
             _categoryRepo = categoryRepo;
+            _attemptRepo = attemptRepo;
+            _reportRepo = reportRepo;
+            _snapshotRepo = snapshotRepo;
         }
 
         public async Task<int> GetTotalPatientsAsync(int doctorId)
         {
-            return await _relationshipRepo.CountDistinctPatientsAsync(doctorId);
+            var active = await _relationshipRepo.GetActiveByDoctorIdAsync(doctorId);
+            return active.Select(r => r.PatientId).Distinct().Count();
         }
 
         public async Task<int> GetTotalPlansAsync(int doctorId)
@@ -124,6 +134,145 @@ namespace Nutq.Core.Services
                 sessionTimeline,
                 categoryTrends);
         }
+
+        // ─── Plan Analytics ──────────────────────────────────────────────────────
+
+        public async Task<TherapyPlanAnalytics?> GetTherapyPlanAnalyticsAsync(int doctorId, int planId)
+        {
+            // 1. Load plan and verify ownership
+            var plan = await _planRepo.GetPlanWithExercisesByIdAsync(planId);
+            if (plan == null || plan.DoctorId != doctorId)
+                return null;
+
+            var planExercises = plan.PlanExercises ?? new List<PlanExercise>();
+            var planExerciseIds = planExercises.Select(pe => pe.Id).ToList();
+
+            // 2. Load training sessions for this plan
+            var sessions = planExerciseIds.Any()
+                ? (await _sessionRepo.GetByPlanExerciseIdsAsync(planExerciseIds)).ToList()
+                : new List<TrainingSession>();
+
+            var sessionIds = sessions.Select(s => s.Id).ToList();
+
+            // 3. Load speech attempts and clinical reports for those sessions
+            var attempts = sessionIds.Any()
+                ? (await _attemptRepo.GetByTrainingSessionIdsAsync(sessionIds)).ToList()
+                : new List<SpeechAttempt>();
+
+            var reports = sessionIds.Any()
+                ? (await _reportRepo.GetByTrainingSessionIdsAsync(sessionIds)).ToList()
+                : new List<SessionClinicalReport>();
+
+            // 4. Compute plan summary stats for comparison windows
+            var currentAccuracy = sessions.Any() ? sessions.Average(s => s.AccuracyPercent) : 0;
+            var currentSimilarity = sessions.Any() ? sessions.Average(s => s.AverageSimilarityScore) : 0;
+            var currentFirstAttempt = attempts.Any()
+                ? BuildFirstAttemptRate(attempts) : 0;
+
+            // 5. Build progress comparisons
+            var progressComparison = await BuildProgressComparisonAsync(
+                plan, sessions, currentAccuracy, currentSimilarity, currentFirstAttempt);
+
+            // 6. Delegate computation to the engine
+            var analytics = PlanAnalyticsEngine.Compute(plan, sessions, attempts, reports, progressComparison);
+            return analytics;
+        }
+
+        private static double BuildFirstAttemptRate(IReadOnlyList<SpeechAttempt> attempts)
+        {
+            var byWord = attempts.GroupBy(a => $"{a.VocabularyId}|{a.ExpectedWord}").ToList();
+            if (!byWord.Any()) return 0;
+            var firstAttemptCorrect = byWord.Count(g => g.OrderBy(a => a.AttemptNumber).First().IsCorrect);
+            return Math.Round((double)firstAttemptCorrect / byWord.Count * 100, 2);
+        }
+
+        private async Task<PlanProgressComparison> BuildProgressComparisonAsync(
+            TherapyPlan plan,
+            IReadOnlyList<TrainingSession> planSessions,
+            double currentAccuracy,
+            double currentSimilarity,
+            double currentFirstAttempt)
+        {
+            var patientId = plan.PatientId;
+            var now = DateTime.UtcNow;
+
+            // vs. last session in this plan (second-to-last)
+            PlanPeriodComparison vsPrevSession;
+            if (planSessions.Count >= 2)
+            {
+                var prevSession = planSessions[^2];
+                vsPrevSession = PlanAnalyticsEngine.BuildPeriodComparison(
+                    "Previous Session",
+                    currentAccuracy,
+                    currentSimilarity,
+                    currentFirstAttempt,
+                    prevSession.AccuracyPercent,
+                    prevSession.AverageSimilarityScore,
+                    null);
+            }
+            else
+            {
+                vsPrevSession = new PlanPeriodComparison("Previous Session", null, null, null, false);
+            }
+
+            // vs. previous plan for same patient
+            PlanPeriodComparison vsPrevPlan;
+            var allPatientPlans = (await _planRepo.GetByPatientIdAsync(patientId))
+                .OrderByDescending(p => p.StartDate)
+                .ToList();
+
+            var prevPlan = allPatientPlans.FirstOrDefault(p => p.Id != plan.Id && p.StartDate < plan.StartDate);
+            if (prevPlan != null)
+            {
+                var prevPlanExerciseIds = (await _planExerciseRepo.GetByPlanIdsAsync(new List<int> { prevPlan.Id }))
+                    .Select(pe => pe.Id).ToList();
+                var prevPlanSessions = prevPlanExerciseIds.Any()
+                    ? (await _sessionRepo.GetByPlanExerciseIdsAsync(prevPlanExerciseIds)).ToList()
+                    : new List<TrainingSession>();
+
+                if (prevPlanSessions.Any())
+                {
+                    vsPrevPlan = PlanAnalyticsEngine.BuildPeriodComparison(
+                        "Previous Plan",
+                        currentAccuracy,
+                        currentSimilarity,
+                        currentFirstAttempt,
+                        prevPlanSessions.Average(s => s.AccuracyPercent),
+                        prevPlanSessions.Average(s => s.AverageSimilarityScore),
+                        null);
+                }
+                else
+                {
+                    vsPrevPlan = new PlanPeriodComparison("Previous Plan", null, null, null, false);
+                }
+            }
+            else
+            {
+                vsPrevPlan = new PlanPeriodComparison("Previous Plan", null, null, null, false);
+            }
+
+            // vs. last 7 days
+            var sevenDaysAgo = now.AddDays(-7);
+            var allRecentSessions7 = (await _sessionRepo.GetByPatientAsync(patientId, sevenDaysAgo, now)).ToList();
+            var refSessions7 = allRecentSessions7.Where(s => !planSessions.Any(ps => ps.Id == s.Id)).ToList();
+            var vs7Days = refSessions7.Any()
+                ? PlanAnalyticsEngine.BuildPeriodComparison("Last 7 Days", currentAccuracy, currentSimilarity, currentFirstAttempt,
+                    refSessions7.Average(s => s.AccuracyPercent), refSessions7.Average(s => s.AverageSimilarityScore), null)
+                : new PlanPeriodComparison("Last 7 Days", null, null, null, false);
+
+            // vs. last 30 days
+            var thirtyDaysAgo = now.AddDays(-30);
+            var allRecentSessions30 = (await _sessionRepo.GetByPatientAsync(patientId, thirtyDaysAgo, now)).ToList();
+            var refSessions30 = allRecentSessions30.Where(s => !planSessions.Any(ps => ps.Id == s.Id)).ToList();
+            var vs30Days = refSessions30.Any()
+                ? PlanAnalyticsEngine.BuildPeriodComparison("Last 30 Days", currentAccuracy, currentSimilarity, currentFirstAttempt,
+                    refSessions30.Average(s => s.AccuracyPercent), refSessions30.Average(s => s.AverageSimilarityScore), null)
+                : new PlanPeriodComparison("Last 30 Days", null, null, null, false);
+
+            return new PlanProgressComparison(vsPrevSession, vsPrevPlan, vs7Days, vs30Days);
+        }
+
+        // ─── Longitudinal trend helpers ──────────────────────────────────────────
 
         private static TrendResult ComputeOverallTrend(IReadOnlyList<SessionTimelineEntry> timeline)
         {

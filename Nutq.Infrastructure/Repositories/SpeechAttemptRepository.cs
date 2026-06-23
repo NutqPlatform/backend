@@ -32,5 +32,14 @@ namespace Nutq.Infrastructure.Repositories
                 .OrderBy(a => a.AttemptedAt)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<SpeechAttempt>> GetByTrainingSessionIdsAsync(IEnumerable<int> trainingSessionIds)
+        {
+            var ids = trainingSessionIds.ToList();
+            return await _context.SpeechAttempts.AsNoTracking()
+                .Where(a => ids.Contains(a.TrainingSessionId))
+                .OrderBy(a => a.AttemptedAt)
+                .ToListAsync();
+        }
     }
 }

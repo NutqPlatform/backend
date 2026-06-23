@@ -27,7 +27,7 @@ namespace Nutq.Core.Services
             var doctor = await _doctorRepository.GetByEmailAsync(email);
             if (doctor == null || doctor.Password != password) return null;
 
-            var token = GenerateJwt(doctor.Id, doctor.Email);
+            var token = GenerateJwt(doctor.Id, doctor.Email, "doctor");
             return new AuthResult(token, DateTime.UtcNow.AddHours(1), doctor.Id, doctor.Email);
         }
 
@@ -36,16 +36,17 @@ namespace Nutq.Core.Services
             var patient = await _patientRepository.GetByEmailAsync(email);
             if (patient == null || patient.Password != password) return null;
 
-            var token = GenerateJwt(patient.Id, patient.Email);
+            var token = GenerateJwt(patient.Id, patient.Email, "patient");
             return new AuthResult(token, DateTime.UtcNow.AddHours(1), patient.Id, patient.Email);
         }
 
-        private string GenerateJwt(int userId, string email)
+        private string GenerateJwt(int userId, string email, string role)
         {
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, email),
-                new Claim("id", userId.ToString())
+                new Claim("id", userId.ToString()),
+                new Claim("role", role)
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));

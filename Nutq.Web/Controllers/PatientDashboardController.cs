@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Nutq.Core.Interfaces;
 using Nutq.Web.DTOs.PatientDashboard;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Nutq.Web.Controllers
 {
@@ -9,15 +13,38 @@ namespace Nutq.Web.Controllers
     public class PatientDashboardController : ControllerBase
     {
         private readonly IPatientDashboardService _service;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
-        public PatientDashboardController(IPatientDashboardService service)
+        public PatientDashboardController(
+            IPatientDashboardService service,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _service = service;
+            _relationshipRepo = relationshipRepo;
         }
 
         [HttpGet("{patientId}")]
         public async Task<IActionResult> GetDashboard(int patientId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null)
+                return Forbid();
+
+            if (user.Value.Role == "patient")
+            {
+                if (user.Value.UserId != patientId)
+                    return Forbid();
+            }
+            else if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
+
             try
             {
                 var plans = await _service.GetPatientPlansAsync(patientId);

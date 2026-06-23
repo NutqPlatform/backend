@@ -30,13 +30,13 @@ namespace Nutq.Infrastructure.Repositories
         public async Task<List<TherapyPlan>> GetOngoingPlansByDoctorAsync(int doctorId)
         {
             return await _context.TherapyPlans
-                .Where(p => p.DoctorId == doctorId
-                    && !p.IsArchived
-                    && p.Patient != null
-                    && p.Patient.DoctorId == doctorId)
                 .Include(tp => tp.Patient)
                 .Include(tp => tp.PlanExercises!)
                     .ThenInclude(pe => pe.Exercise)
+                .Where(p => p.DoctorId == doctorId
+                    && !p.IsArchived
+                    && p.Patient != null
+                    && _context.DoctorPatientRelationships.Any(r => r.DoctorId == doctorId && r.PatientId == p.PatientId && r.EndedAt == null))
                 .ToListAsync();
         }
          public async Task<IEnumerable<TherapyPlan>> GetByDoctorAndPatientAsync(int doctorId, int patientId)

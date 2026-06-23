@@ -15,20 +15,40 @@ namespace Nutq.Web.Controllers
         private readonly IWeeklyReportRepository _weeklyReportRepository;
         private readonly IPatientRepository _patientRepository;
         private readonly ITherapyPlanRepository _therapyPlanRepository;
+        private readonly IDoctorPatientRelationshipRepository _relationshipRepo;
 
         public WeeklyReportController(
             IWeeklyReportRepository weeklyReportRepository,
             IPatientRepository patientRepository,
-            ITherapyPlanRepository therapyPlanRepository)
+            ITherapyPlanRepository therapyPlanRepository,
+            IDoctorPatientRelationshipRepository relationshipRepo)
         {
             _weeklyReportRepository = weeklyReportRepository;
             _patientRepository = patientRepository;
             _therapyPlanRepository = therapyPlanRepository;
+            _relationshipRepo = relationshipRepo;
+        }
+
+        private int? GetCurrentDoctorId()
+        {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor")
+                return null;
+            return user.Value.UserId;
+        }
+
+        private (int UserId, string Role)? GetCurrentUser()
+        {
+            return JwtAuthorizationHelper.GetCurrentUser(Request);
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateReport([FromBody] WeeklyReportCreateDto dto)
         {
+            var loggedInDoctorId = GetCurrentDoctorId();
+            if (loggedInDoctorId == null || loggedInDoctorId != dto.DoctorId)
+                return Forbid();
+
             try
             {
                 var validationError = await ValidateDoctorCanManageReportAsync(dto.DoctorId, dto.PatientId, dto.TherapyPlanId);
@@ -81,6 +101,10 @@ namespace Nutq.Web.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateReport(int id, [FromBody] WeeklyReportCreateDto dto)
         {
+            var loggedInDoctorId = GetCurrentDoctorId();
+            if (loggedInDoctorId == null || loggedInDoctorId != dto.DoctorId)
+                return Forbid();
+
             try
             {
                 var report = await _weeklyReportRepository.GetByIdAsync(id);
@@ -88,6 +112,9 @@ namespace Nutq.Web.Controllers
                 {
                     return NotFound(new { error = "Report not found" });
                 }
+
+                if (report.DoctorId != loggedInDoctorId)
+                    return Forbid();
 
                 var validationError = await ValidateDoctorCanManageReportAsync(
                     report.DoctorId,
@@ -126,10 +153,29 @@ namespace Nutq.Web.Controllers
         [HttpGet("plan/{planId}")]
         public async Task<IActionResult> GetReportByPlan(int planId)
         {
+            var user = GetCurrentUser();
+            if (user == null)
+                return Forbid();
+
             var report = await _weeklyReportRepository.GetByTherapyPlanIdAsync(planId);
             if (report == null)
             {
                 return Ok(null);
+            }
+
+            if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, report.PatientId))
+                    return Forbid();
+            }
+            else if (user.Value.Role == "patient")
+            {
+                if (report.PatientId != user.Value.UserId)
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
             }
 
             var result = new WeeklyReportDto
@@ -150,6 +196,25 @@ namespace Nutq.Web.Controllers
         [HttpGet("patient/{patientId}")]
         public async Task<IActionResult> GetReportsForPatient(int patientId)
         {
+            var user = GetCurrentUser();
+            if (user == null)
+                return Forbid();
+
+            if (user.Value.Role == "doctor")
+            {
+                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+            }
+            else if (user.Value.Role == "patient")
+            {
+                if (patientId != user.Value.UserId)
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
+
             var reports = await _weeklyReportRepository.GetByPatientIdAsync(patientId);
 
             var list = reports.Select(r => new WeeklyReportDto
@@ -173,7 +238,8 @@ namespace Nutq.Web.Controllers
             if (patient == null)
                 return "Patient not found";
 
-            if (patient.DoctorId != doctorId)
+            var active = await _relationshipRepo.GetActiveAsync(doctorId, patientId);
+            if (active == null)
                 return "Patient is no longer assigned to you. Reports cannot be created or edited.";
 
             if (therapyPlanId.HasValue)

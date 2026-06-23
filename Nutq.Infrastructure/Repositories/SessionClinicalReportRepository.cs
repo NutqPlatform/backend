@@ -40,5 +40,13 @@ namespace Nutq.Infrastructure.Repositories
 
             return await query.OrderByDescending(r => r.GeneratedAt).ToListAsync();
         }
+
+        public async Task<IEnumerable<SessionClinicalReport>> GetByTrainingSessionIdsAsync(IEnumerable<int> trainingSessionIds)
+        {
+            var ids = trainingSessionIds.ToList();
+            return await _context.SessionClinicalReports.AsNoTracking()
+                .Where(r => ids.Contains(r.TrainingSessionId))
+                .ToListAsync();
+        }
     }
 }
