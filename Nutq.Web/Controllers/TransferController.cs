@@ -97,8 +97,8 @@ namespace Nutq.Web.Controllers
 
             try
             {
-                var request = await _transferService.AcceptTransferAsync(doctorId, requestId);
-                return Ok(new { success = true, request });
+                await _transferService.AcceptTransferAsync(doctorId, requestId);
+                return Ok(new { success = true, message = "Transfer request accepted successfully." });
             }
             catch (Exception ex)
             {
@@ -115,8 +115,8 @@ namespace Nutq.Web.Controllers
 
             try
             {
-                var request = await _transferService.RejectTransferAsync(doctorId, requestId);
-                return Ok(new { success = true, request });
+                await _transferService.RejectTransferAsync(doctorId, requestId);
+                return Ok(new { success = true, message = "Transfer request rejected successfully." });
             }
             catch (Exception ex)
             {

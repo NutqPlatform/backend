@@ -165,7 +165,7 @@ namespace Nutq.Web.Controllers
 
             if (user.Value.Role == "doctor")
             {
-                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, report.PatientId))
+                if (report.DoctorId != user.Value.UserId)
                     return Forbid();
             }
             else if (user.Value.Role == "patient")
@@ -216,8 +216,14 @@ namespace Nutq.Web.Controllers
             }
 
             var reports = await _weeklyReportRepository.GetByPatientIdAsync(patientId);
+            IEnumerable<WeeklyReport> filteredReports = reports;
 
-            var list = reports.Select(r => new WeeklyReportDto
+            if (user.Value.Role == "doctor")
+            {
+                filteredReports = reports.Where(r => r.DoctorId == user.Value.UserId);
+            }
+
+            var list = filteredReports.Select(r => new WeeklyReportDto
             {
                 Id = r.Id,
                 DoctorId = r.DoctorId,

@@ -62,7 +62,18 @@ namespace Nutq.Web.Controllers
             }
             else if (user.Value.Role == "doctor")
             {
-                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                // Plan owner (plan.DoctorId) always retains access regardless of relationship status.
+                // A doctor with an active relationship but who is NOT the plan owner can also view
+                // the exercises (they are managing the patient currently).
+                // A doctor who previously had the patient but is NOT the plan owner cannot access.
+                var planForAuth = await _therapyPlanService.GetPlanByIdAsync(planId);
+                if (planForAuth == null)
+                    return NotFound(new { error = "Therapy plan not found" });
+
+                bool isPlanOwner = planForAuth.DoctorId == user.Value.UserId;
+                bool hasActiveRelationship = await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId);
+
+                if (!isPlanOwner && !hasActiveRelationship)
                     return Forbid();
             }
             else
@@ -123,8 +134,22 @@ namespace Nutq.Web.Controllers
             }
             else if (user.Value.Role == "doctor")
             {
-                if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                // Plan owner (plan.DoctorId) always retains access regardless of relationship status.
+                // A doctor with an active relationship but who is NOT the plan owner can also view
+                // the vocabulary (they are managing the patient currently).
+                var planExerciseForAuth = await _planExerciseRepo.GetByIdAsync(planExerciseId);
+                if (planExerciseForAuth != null)
+                {
+                    var planForAuth = await _therapyPlanService.GetPlanByIdAsync(planExerciseForAuth.TherapyPlanId);
+                    bool isPlanOwner = planForAuth?.DoctorId == user.Value.UserId;
+                    bool hasActiveRelationship = await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId);
+                    if (!isPlanOwner && !hasActiveRelationship)
+                        return Forbid();
+                }
+                else if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                {
                     return Forbid();
+                }
             }
             else
             {
@@ -273,6 +298,15 @@ namespace Nutq.Web.Controllers
             else if (user.Value.Role == "doctor")
             {
                 if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, patientId))
+                    return Forbid();
+
+                // Patient transfer rules: New doctor CANNOT see detailed session analytics/speech attempts from previous doctor's plans
+                var planEx = await _planExerciseRepo.GetByIdAsync(planExerciseId);
+                if (planEx == null)
+                    return NotFound(new { error = "Plan exercise not found." });
+
+                var plan = await _therapyPlanService.GetPlanByIdAsync(planEx.TherapyPlanId);
+                if (plan == null || plan.DoctorId != user.Value.UserId)
                     return Forbid();
             }
             else

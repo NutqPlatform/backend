@@ -11,12 +11,12 @@ namespace Nutq.Core.Interfaces
     {
         Task<bool> CanDoctorAccessPatientAsync(int doctorId, int patientId);
         Task<PatientPerformanceSummary> GetSummaryAsync(int patientId);
-        Task<IEnumerable<TrainingSessionSummary>> GetSessionsAsync(int patientId, DateTime? from = null, DateTime? to = null);
+        Task<IEnumerable<TrainingSessionSummary>> GetSessionsAsync(int patientId, int? doctorId = null, DateTime? from = null, DateTime? to = null);
         Task<PatientProgressTrends> GetProgressAsync(int patientId, string period);
         Task<CategoryAnalysisResult> GetCategoryAnalysisAsync(int patientId);
         Task<ChartDataResult> GetChartDataAsync(int patientId, DateTime? from = null, DateTime? to = null);
-        Task<IEnumerable<ClinicalReportSummary>> GetReportsAsync(int patientId, DateTime? from = null, DateTime? to = null);
-        Task<ClinicalReportDetail?> GetReportAsync(int patientId, int sessionId);
+        Task<IEnumerable<ClinicalReportSummary>> GetReportsAsync(int patientId, int? doctorId = null, DateTime? from = null, DateTime? to = null);
+        Task<ClinicalReportDetail?> GetReportAsync(int patientId, int sessionId, int? doctorId = null);
         Task<PatientExerciseSessionAnalytics?> GetExerciseSessionAnalyticsAsync(int patientId, int planExerciseId);
     }
 

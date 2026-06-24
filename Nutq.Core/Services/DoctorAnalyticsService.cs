@@ -185,15 +185,72 @@ namespace Nutq.Core.Services
             var progressComparison = await BuildProgressComparisonAsync(
                 plan, sessions, currentAccuracy, currentSimilarity, currentFirstAttempt);
 
-            // 6. Resolve active clinical insights generator from options
+            // 6. Build session timeline (Plan → Session → Word hierarchy)
+            var sessionTimeline = BuildSessionTimeline(sessions, attempts);
+
+            // 7. Resolve active clinical insights generator from options
             var activeGenName = _options.Value.ActiveGenerator;
             var generator = _generators.FirstOrDefault(g => g.GetType().Name.StartsWith(activeGenName, StringComparison.OrdinalIgnoreCase))
                             ?? _generators.FirstOrDefault(g => g is RuleBasedClinicalInsightGenerator)
                             ?? _generators.First();
 
-            // 7. Delegate computation to the engine
-            var analytics = PlanAnalyticsEngine.Compute(plan, sessions, attempts, reports, progressComparison, _options.Value, generator);
+            // 8. Delegate computation to the engine
+            var analytics = PlanAnalyticsEngine.Compute(plan, sessions, attempts, reports, progressComparison, _options.Value, generator, sessionTimeline);
             return analytics;
+        }
+
+        private static IReadOnlyList<PlanSessionEntry> BuildSessionTimeline(
+            IReadOnlyList<TrainingSession> sessions,
+            IReadOnlyList<SpeechAttempt> attempts)
+        {
+            var attemptsBySession = attempts
+                .GroupBy(a => a.TrainingSessionId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var result = new List<PlanSessionEntry>();
+            var ordered = sessions.OrderBy(s => s.StartTime).ToList();
+
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                var session = ordered[i];
+                attemptsBySession.TryGetValue(session.Id, out var sessionAttempts);
+                sessionAttempts ??= new List<SpeechAttempt>();
+
+                // Per-word stats within this session
+                var wordGroups = sessionAttempts
+                    .GroupBy(a => a.ExpectedWord)
+                    .Select(g =>
+                    {
+                        var wordAttempts = g.OrderBy(a => a.AttemptNumber).ToList();
+                        var best = wordAttempts.Max(a => a.SimilarityScore);
+                        var avg = wordAttempts.Count > 0 ? wordAttempts.Average(a => a.SimilarityScore) : 0;
+                        var succeeded = wordAttempts.Any(a => a.IsCorrect);
+                        return new PlanSessionWordEntry(
+                            g.Key,
+                            g.First().Category,
+                            wordAttempts.Count,
+                            Math.Round(best, 2),
+                            Math.Round(avg, 2),
+                            succeeded);
+                    })
+                    .OrderBy(w => w.ExpectedWord)
+                    .ToList();
+
+                result.Add(new PlanSessionEntry(
+                    SessionNumber: i + 1,
+                    TrainingSessionId: session.Id,
+                    StartTime: session.StartTime,
+                    EndTime: session.EndTime,
+                    DurationSeconds: session.TotalDurationSeconds,
+                    AccuracyPercent: Math.Round(session.AccuracyPercent, 2),
+                    AverageSimilarityScore: Math.Round(session.AverageSimilarityScore, 2),
+                    TotalAttempts: sessionAttempts.Count,
+                    WordsSucceeded: wordGroups.Count(w => w.Succeeded),
+                    WordsAttempted: wordGroups.Count,
+                    Words: wordGroups));
+            }
+
+            return result;
         }
 
         private static double BuildFirstAttemptRate(IReadOnlyList<SpeechAttempt> attempts)

@@ -22,6 +22,10 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}/summary")]
         public async Task<IActionResult> GetSummary(int patientId, [FromQuery] int doctorId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
@@ -47,10 +51,14 @@ namespace Nutq.Web.Controllers
             [FromQuery] DateTime? from = null,
             [FromQuery] DateTime? to = null)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
-            var sessions = await _analyticsService.GetSessionsAsync(patientId, from, to);
+            var sessions = await _analyticsService.GetSessionsAsync(patientId, doctorId, from, to);
             return Ok(sessions.Select(s => new TrainingSessionSummaryDto
             {
                 Id = s.Id,
@@ -73,6 +81,10 @@ namespace Nutq.Web.Controllers
             [FromQuery] int doctorId,
             [FromQuery] string period = "daily")
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
@@ -95,6 +107,10 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}/categories")]
         public async Task<IActionResult> GetCategories(int patientId, [FromQuery] int doctorId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
@@ -109,6 +125,10 @@ namespace Nutq.Web.Controllers
             [FromQuery] DateTime? from = null,
             [FromQuery] DateTime? to = null)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
@@ -134,10 +154,14 @@ namespace Nutq.Web.Controllers
             [FromQuery] DateTime? from = null,
             [FromQuery] DateTime? to = null)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
-            var reports = await _analyticsService.GetReportsAsync(patientId, from, to);
+            var reports = await _analyticsService.GetReportsAsync(patientId, doctorId, from, to);
             return Ok(reports.Select(r => new ClinicalReportSummaryDto
             {
                 Id = r.Id,
@@ -154,10 +178,14 @@ namespace Nutq.Web.Controllers
         [HttpGet("{patientId}/reports/{sessionId}")]
         public async Task<IActionResult> GetReport(int patientId, int sessionId, [FromQuery] int doctorId)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 
-            var report = await _analyticsService.GetReportAsync(patientId, sessionId);
+            var report = await _analyticsService.GetReportAsync(patientId, sessionId, doctorId);
             if (report == null) return NotFound(new { error = "Report not found" });
 
             return Ok(new ClinicalReportDetailDto
@@ -188,6 +216,10 @@ namespace Nutq.Web.Controllers
             [FromQuery] int doctorId,
             [FromQuery] bool activeOnly = true)
         {
+            var user = JwtAuthorizationHelper.GetCurrentUser(Request);
+            if (user == null || user.Value.Role != "doctor" || user.Value.UserId != doctorId)
+                return Forbid();
+
             if (!await _analyticsService.CanDoctorAccessPatientAsync(doctorId, patientId))
                 return Forbid();
 

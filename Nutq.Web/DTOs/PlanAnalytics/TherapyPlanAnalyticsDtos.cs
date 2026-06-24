@@ -125,6 +125,35 @@ namespace Nutq.Web.DTOs.PlanAnalytics
         public string Reasoning { get; set; } = string.Empty;
     }
 
+    // ─── Session Timeline DTOs ─────────────────────────────────────────────────
+
+    /// <summary>Per-word breakdown within a single training session.</summary>
+    public class PlanSessionWordDto
+    {
+        public string ExpectedWord { get; set; } = string.Empty;
+        public string? Category { get; set; }
+        public int TotalAttempts { get; set; }
+        public double BestSimilarityScore { get; set; }
+        public double AverageSimilarityScore { get; set; }
+        public bool Succeeded { get; set; }
+    }
+
+    /// <summary>One training session inside a therapy plan.</summary>
+    public class PlanSessionTimelineDto
+    {
+        public int SessionNumber { get; set; }
+        public int TrainingSessionId { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public int DurationSeconds { get; set; }
+        public double AccuracyPercent { get; set; }
+        public double AverageSimilarityScore { get; set; }
+        public int TotalAttempts { get; set; }
+        public int WordsSucceeded { get; set; }
+        public int WordsAttempted { get; set; }
+        public IEnumerable<PlanSessionWordDto> Words { get; set; } = Array.Empty<PlanSessionWordDto>();
+    }
+
     public class TherapyPlanAnalyticsDto
     {
         public int PlanId { get; set; }
@@ -142,7 +171,10 @@ namespace Nutq.Web.DTOs.PlanAnalytics
         public PlanClinicalInsightsDto ClinicalInsights { get; set; } = new();
         public IEnumerable<RecurringDifficultyItemDto> RecurringDifficulties { get; set; } = Array.Empty<RecurringDifficultyItemDto>();
         public SuggestedNextTherapyContentDto SuggestedNextContent { get; set; } = new();
+        /// <summary>Ordered list of all training sessions for this plan, newest last.</summary>
+        public IEnumerable<PlanSessionTimelineDto> SessionTimeline { get; set; } = Array.Empty<PlanSessionTimelineDto>();
     }
+
 
     // ─── Therapist PDF Report Model (Export-Ready structure) ──────────────────
 

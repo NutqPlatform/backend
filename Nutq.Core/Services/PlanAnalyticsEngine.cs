@@ -22,7 +22,8 @@ namespace Nutq.Core.Services
             IReadOnlyList<SessionClinicalReport> reports,
             PlanProgressComparison progressComparison,
             PlanAnalyticsOptions options,
-            IClinicalInsightGenerator insightGenerator)
+            IClinicalInsightGenerator insightGenerator,
+            IReadOnlyList<PlanSessionEntry> sessionTimeline)
         {
             var words = BuildWordPerformances(attempts);
             var categories = BuildCategoryPerformances(words);
@@ -50,7 +51,8 @@ namespace Nutq.Core.Services
                 progressComparison,
                 insights,
                 recurringDifficulties,
-                suggestedNextContent);
+                suggestedNextContent,
+                sessionTimeline);
         }
 
         // ─── Summary ─────────────────────────────────────────────────────────────

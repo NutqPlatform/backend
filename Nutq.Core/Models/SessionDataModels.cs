@@ -85,6 +85,14 @@ namespace Nutq.Core.Models
         [JsonPropertyName("isCorrect")]
         public bool IsCorrect { get; set; }
 
+        /// <summary>
+        /// True when the patient pressed 'Skip' instead of actually speaking.
+        /// Skipped attempts must never be treated as correct and are excluded
+        /// from recognized-word and similarity calculations.
+        /// </summary>
+        [JsonPropertyName("isSkipped")]
+        public bool IsSkipped { get; set; }
+
         [JsonPropertyName("audioDurationSeconds")]
         public double AudioDurationSeconds { get; set; }
 

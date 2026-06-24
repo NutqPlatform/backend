@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Linq;
+using System.Collections.Generic;
 using Nutq.Core.Interfaces;
+using Nutq.Core.Entities;
 
 namespace Nutq.Core.Services
 {
@@ -13,6 +16,8 @@ namespace Nutq.Core.Services
         private readonly ISessionClinicalReportRepository _reportRepo;
         private readonly ISpeechAttemptRepository _attemptRepo;
         private readonly IVocabularyRepository _vocabularyRepo;
+        private readonly ITherapyPlanRepository _planRepo;
+        private readonly IPlanExerciseRepository _planExerciseRepo;
 
         public PatientAnalyticsService(
             IPatientRepository patientRepo,
@@ -22,7 +27,9 @@ namespace Nutq.Core.Services
             ICategoryPerformanceSnapshotRepository categoryRepo,
             ISessionClinicalReportRepository reportRepo,
             ISpeechAttemptRepository attemptRepo,
-            IVocabularyRepository vocabularyRepo)
+            IVocabularyRepository vocabularyRepo,
+            ITherapyPlanRepository planRepo,
+            IPlanExerciseRepository planExerciseRepo)
         {
             _patientRepo = patientRepo;
             _relationshipRepo = relationshipRepo;
@@ -32,6 +39,8 @@ namespace Nutq.Core.Services
             _reportRepo = reportRepo;
             _attemptRepo = attemptRepo;
             _vocabularyRepo = vocabularyRepo;
+            _planRepo = planRepo;
+            _planExerciseRepo = planExerciseRepo;
         }
 
         public async Task<bool> CanDoctorAccessPatientAsync(int doctorId, int patientId)
@@ -82,9 +91,29 @@ namespace Nutq.Core.Services
                 needsFocus);
         }
 
-        public async Task<IEnumerable<TrainingSessionSummary>> GetSessionsAsync(int patientId, DateTime? from = null, DateTime? to = null)
+        public async Task<IEnumerable<TrainingSessionSummary>> GetSessionsAsync(int patientId, int? doctorId = null, DateTime? from = null, DateTime? to = null)
         {
-            var sessions = await _sessionRepo.GetByPatientAsync(patientId, from, to);
+            IEnumerable<TrainingSession> sessions;
+            if (doctorId.HasValue)
+            {
+                var plans = await _planRepo.GetByDoctorAndPatientAsync(doctorId.Value, patientId);
+                var planIds = plans.Select(p => p.Id).ToList();
+                var planExercises = await _planExerciseRepo.GetByPlanIdsAsync(planIds);
+                var planExerciseIds = planExercises.Select(pe => pe.Id).ToList();
+
+                var list = planExerciseIds.Any()
+                    ? (await _sessionRepo.GetByPlanExerciseIdsAsync(planExerciseIds)).ToList()
+                    : new List<TrainingSession>();
+
+                if (from.HasValue) list = list.Where(s => s.StartTime >= from.Value).ToList();
+                if (to.HasValue) list = list.Where(s => s.EndTime <= to.Value).ToList();
+                sessions = list.OrderByDescending(s => s.StartTime);
+            }
+            else
+            {
+                sessions = await _sessionRepo.GetByPatientAsync(patientId, from, to);
+            }
+
             return sessions.Select(s => new TrainingSessionSummary(
                 s.Id,
                 s.ExerciseProgressId,
@@ -163,9 +192,33 @@ namespace Nutq.Core.Services
                 improvementTrend);
         }
 
-        public async Task<IEnumerable<ClinicalReportSummary>> GetReportsAsync(int patientId, DateTime? from = null, DateTime? to = null)
+        public async Task<IEnumerable<ClinicalReportSummary>> GetReportsAsync(int patientId, int? doctorId = null, DateTime? from = null, DateTime? to = null)
         {
-            var reports = await _reportRepo.GetByPatientAsync(patientId, from, to);
+            IEnumerable<SessionClinicalReport> reports;
+            if (doctorId.HasValue)
+            {
+                var plans = await _planRepo.GetByDoctorAndPatientAsync(doctorId.Value, patientId);
+                var planIds = plans.Select(p => p.Id).ToList();
+                var planExercises = await _planExerciseRepo.GetByPlanIdsAsync(planIds);
+                var planExerciseIds = planExercises.Select(pe => pe.Id).ToList();
+
+                var sessions = planExerciseIds.Any()
+                    ? (await _sessionRepo.GetByPlanExerciseIdsAsync(planExerciseIds)).ToList()
+                    : new List<TrainingSession>();
+
+                if (from.HasValue) sessions = sessions.Where(s => s.StartTime >= from.Value).ToList();
+                if (to.HasValue) sessions = sessions.Where(s => s.EndTime <= to.Value).ToList();
+
+                var sessionIds = sessions.Select(s => s.Id).ToList();
+                reports = sessionIds.Any()
+                    ? await _reportRepo.GetByTrainingSessionIdsAsync(sessionIds)
+                    : new List<SessionClinicalReport>();
+            }
+            else
+            {
+                reports = await _reportRepo.GetByPatientAsync(patientId, from, to);
+            }
+
             return reports.Select(r => new ClinicalReportSummary(
                 r.Id,
                 r.TrainingSessionId,
@@ -177,10 +230,19 @@ namespace Nutq.Core.Services
                 r.AveragePronunciationSimilarity));
         }
 
-        public async Task<ClinicalReportDetail?> GetReportAsync(int patientId, int sessionId)
+        public async Task<ClinicalReportDetail?> GetReportAsync(int patientId, int sessionId, int? doctorId = null)
         {
             var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId);
             if (session == null || session.PatientId != patientId) return null;
+
+            if (doctorId.HasValue)
+            {
+                var planEx = await _planExerciseRepo.GetByIdAsync(session.PlanExerciseId);
+                if (planEx == null) return null;
+
+                var plan = await _planRepo.GetByIdAsync(planEx.TherapyPlanId);
+                if (plan == null || plan.DoctorId != doctorId.Value) return null;
+            }
 
             var report = session.ClinicalReport
                 ?? await _reportRepo.GetByTrainingSessionIdAsync(sessionId);

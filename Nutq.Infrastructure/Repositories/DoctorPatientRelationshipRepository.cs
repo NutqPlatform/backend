@@ -32,11 +32,21 @@ namespace Nutq.Infrastructure.Repositories
 
         public async Task<IEnumerable<DoctorPatientRelationship>> GetFormerByDoctorIdAsync(int doctorId)
         {
-            return await _context.DoctorPatientRelationships
-                .Include(r => r.Patient)
-                .Where(r => r.DoctorId == doctorId && r.EndedAt != null)
-                .OrderByDescending(r => r.EndedAt)
+            var activePatientIds = await _context.DoctorPatientRelationships
+                .Where(r => r.DoctorId == doctorId && r.EndedAt == null)
+                .Select(r => r.PatientId)
                 .ToListAsync();
+
+            var relationships = await _context.DoctorPatientRelationships
+                .Include(r => r.Patient)
+                .Where(r => r.DoctorId == doctorId && r.EndedAt != null && !activePatientIds.Contains(r.PatientId))
+                .ToListAsync();
+
+            return relationships
+                .GroupBy(r => r.PatientId)
+                .Select(g => g.OrderByDescending(r => r.EndedAt).First())
+                .OrderByDescending(r => r.EndedAt)
+                .ToList();
         }
 
         public async Task<IEnumerable<DoctorPatientRelationship>> GetByDoctorIdAsync(int doctorId)

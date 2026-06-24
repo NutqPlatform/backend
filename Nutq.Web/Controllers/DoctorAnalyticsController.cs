@@ -178,8 +178,31 @@ namespace Nutq.Web.Controllers
                 ProgressComparison = MapProgressComparisonDto(a.ProgressComparison),
                 ClinicalInsights = MapClinicalInsightsDto(a.ClinicalInsights),
                 RecurringDifficulties = a.RecurringDifficulties.Select(MapRecurringDifficulty),
-                SuggestedNextContent = MapSuggestedNextContent(a.SuggestedNextContent)
+                SuggestedNextContent = MapSuggestedNextContent(a.SuggestedNextContent),
+                SessionTimeline = a.SessionTimeline.Select((s, idx) => new PlanSessionTimelineDto
+                {
+                    SessionNumber = s.SessionNumber,
+                    TrainingSessionId = s.TrainingSessionId,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    DurationSeconds = s.DurationSeconds,
+                    AccuracyPercent = s.AccuracyPercent,
+                    AverageSimilarityScore = s.AverageSimilarityScore,
+                    TotalAttempts = s.TotalAttempts,
+                    WordsSucceeded = s.WordsSucceeded,
+                    WordsAttempted = s.WordsAttempted,
+                    Words = s.Words.Select(w => new PlanSessionWordDto
+                    {
+                        ExpectedWord = w.ExpectedWord,
+                        Category = w.Category,
+                        TotalAttempts = w.TotalAttempts,
+                        BestSimilarityScore = w.BestSimilarityScore,
+                        AverageSimilarityScore = w.AverageSimilarityScore,
+                        Succeeded = w.Succeeded
+                    })
+                })
             };
+
 
         private static TherapyPlanSummaryDto MapSummaryDto(TherapyPlanSummary s) =>
             new()

@@ -29,7 +29,29 @@ namespace Nutq.Core.Interfaces
         PlanProgressComparison ProgressComparison,
         PlanClinicalInsights ClinicalInsights,
         IReadOnlyList<RecurringDifficultyItem> RecurringDifficulties,
-        SuggestedNextTherapyContent SuggestedNextContent);
+        SuggestedNextTherapyContent SuggestedNextContent,
+        IReadOnlyList<PlanSessionEntry> SessionTimeline);
+
+    public record PlanSessionEntry(
+        int SessionNumber,
+        int TrainingSessionId,
+        DateTime StartTime,
+        DateTime EndTime,
+        int DurationSeconds,
+        double AccuracyPercent,
+        double AverageSimilarityScore,
+        int TotalAttempts,
+        int WordsSucceeded,
+        int WordsAttempted,
+        IReadOnlyList<PlanSessionWordEntry> Words);
+
+    public record PlanSessionWordEntry(
+        string ExpectedWord,
+        string? Category,
+        int TotalAttempts,
+        double BestSimilarityScore,
+        double AverageSimilarityScore,
+        bool Succeeded);
 
     public record TherapyPlanSummary(
         int TotalSessionDurationSeconds,

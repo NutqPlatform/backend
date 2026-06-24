@@ -50,6 +50,11 @@ namespace Nutq.Core.Services
                     {
                         foreach (var attempt in word.SpeechAttempts)
                         {
+                            // Skip attempts where the patient pressed "Skip" instead of speaking.
+                            // These must never be recorded as correct pronunciations.
+                            if (attempt.IsSkipped)
+                                continue;
+
                             var expectedWord = !string.IsNullOrWhiteSpace(attempt.ExpectedWord)
                                 ? attempt.ExpectedWord
                                 : expected;

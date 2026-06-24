@@ -294,7 +294,10 @@ namespace Nutq.Web.Controllers
 
                 if (user.Value.Role == "doctor")
                 {
-                    if (!await _relationshipRepo.HasRelationshipAsync(user.Value.UserId, plan.PatientId))
+                    // Authorization: only the plan owner can access plan progress.
+                    // HasRelationshipAsync would allow any doctor who ever had the patient —
+                    // including Doctor B after transfer — to see Doctor A's plan progress.
+                    if (plan.DoctorId != user.Value.UserId)
                         return Forbid();
                 }
                 else if (user.Value.Role == "patient")

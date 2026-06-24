@@ -117,17 +117,16 @@ namespace Nutq.Core.Services
             if (patient == null)
                 throw new Exception("Patient not found");
 
-            var activeRelationship = await _relationshipRepo.GetActiveAsync(doctorId, patientId);
-            var isCurrent = activeRelationship != null;
-            if (!isCurrent && !await _relationshipRepo.HasRelationshipAsync(doctorId, patientId))
+            // A doctor can always view plans they created for a patient,
+            // regardless of whether the relationship is still active (i.e., after release or transfer).
+            // Authorization is based on plan ownership (plan.DoctorId), not active relationship.
+            if (!await _relationshipRepo.HasRelationshipAsync(doctorId, patientId))
                 throw new Exception("Patient does not belong to this doctor");
 
+            // Return ALL of this doctor's plans for this patient — archived and non-archived.
+            // The UI handles the read-only display for archived/former-patient plans.
             var plans = await _planRepo.GetByDoctorAndPatientAsync(doctorId, patientId);
-
-            if (isCurrent)
-                return plans.Where(p => !p.IsArchived);
-
-            return plans.Where(p => p.IsArchived);
+            return plans;
         }
 
         public async Task<TherapyPlan?> GetPlanByIdAsync(int planId)
