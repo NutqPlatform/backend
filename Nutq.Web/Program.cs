@@ -103,6 +103,14 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+
+// app.UseHttpsRedirection();
+
+app.UseRouting();               // أضيفي السطر ده
+
+app.UseAuthorization();         // أضيفيه حتى لو مفيش Authentication
+
 app.UseStaticFiles(); 
 // Swagger configuration
 if (app.Environment.IsDevelopment())
